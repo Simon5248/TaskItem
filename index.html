@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks 應用程式 (物件導向版)</title>
+    <!-- 引入 Material Design 圖示庫 與 Google 字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+        /* --- 全域與基礎樣式 (與前一版相同) --- */
+        :root {
+            --primary-color: #3f51b5;
+            --accent-color: #ff4081;
+            --text-color: #212121;
+            --background-color: #f5f5f5;
+            --surface-color: #ffffff;
+            --high-priority-color: #f44336;
+            --medium-priority-color: #ff9800;
+            --low-priority-color: #4caf50;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        #app { display: flex; flex-direction: column; height: 100vh; }
+        .app-bar { background-color: var(--primary-color); color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.2); height: 64px; }
+        .app-bar h1 { font-size: 1.25rem; font-weight: 500; }
+        .btn { background-color: var(--accent-color); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; text-transform: uppercase; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+        .btn:hover { background-color: #e03571; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .btn.loading { cursor: not-allowed; background-color: #bdbdbd; }
+        .btn.loading .mdi-loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        main { flex-grow: 1; padding: 24px; overflow-y: auto; }
+        .task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .task-card { background-color: var(--surface-color); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.3s ease; cursor: grab; }
+        .task-card:hover { box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); }
+        .task-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .task-card-header h3 { margin: 0; font-size: 1.1rem; font-weight: 500; }
+        .task-card-actions { display: flex; gap: 8px; }
+        .task-card-actions .icon-btn { color: #757575; cursor: pointer; transition: color 0.2s; }
+        .task-card-actions .icon-btn:hover { color: var(--primary-color); }
+        .task-card p { margin: 0; color: #616161; font-size: 0.9rem; word-break: break-word; }
+        .task-card-footer { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+        .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag { padding: 4px 8px; border-radius: 12px; color: white; font-weight: 500; }
+        .tag.priority-high { background-color: var(--high-priority-color); }
+        .tag.priority-medium { background-color: var(--medium-priority-color); }
+        .tag.priority-low { background-color: var(--low-priority-color); }
+        .tag.status-pending { background-color: #757575; }
+        .tag.status-in-progress { background-color: #1976d2; }
+        .tag.status-completed { background-color: #43a047; }
+        .creation-date { color: #9e9e9e; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .task-form-container { background-color: var(--surface-color); padding: 24px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 11px 15px -7px rgba(0,0,0,0.2), 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12); transform: scale(0.95); transition: transform 0.3s ease; }
+        .modal-overlay.visible .task-form-container { transform: scale(1); }
+        .task-form-container h2 { margin-top: 0; margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #616161; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #bdbdbd; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
+        .form-actions { margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px; }
+        .btn-secondary { background-color: transparent; color: var(--primary-color); border: 1px solid #e0e0e0; }
+
+        .snackbar { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #323232; color: white; padding: 14px 24px; border-radius: 4px; box-shadow: 0 3px 5px -1px rgba(0,0,0,0.2), 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12); z-index: 2000; transition: bottom 0.5s ease-in-out; }
+        .snackbar.show { bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- 頂部應用列 -->
+        <header class="app-bar">
+            <h1>任務管理</h1>
+            <button class="btn" id="add-task-btn">
+                <i class="mdi mdi-plus"></i>
+                新增任務
+            </button>
+        </header>
+
+        <!-- 主內容區 -->
+        <main>
+            <div class="task-list" id="task-list">
+                <!-- 任務卡片將由 JavaScript 動態插入此處 -->
+            </div>
+        </main>
+
+        <!-- 新增/編輯任務的表單 (Modal) -->
+        <div class="modal-overlay" id="task-modal-overlay">
+            <div class="task-form-container">
+                <h2 id="form-title">新增任務</h2>
+                <form id="task-form">
+                    <input type="hidden" id="task-id">
+                    <div class="form-group">
+                        <label for="title">標題</label>
+                        <input type="text" id="title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">描述</label>
+                        <textarea id="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">狀態</label>
+                        <select id="status" class="form-control">
+                            <option value="pending">待處理 (Pending)</option>
+                            <option value="in-progress">進行中 (In Progress)</option>
+                            <option value="completed">已完成 (Completed)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="priority">優先級</label>
+                        <select id="priority" class="form-control">
+                            <option value="low">低 (Low)</option>
+                            <option value="medium">中 (Medium)</option>
+                            <option value="high">高 (High)</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+                        <button type="submit" class="btn" id="save-btn">
+                            <span class="btn-text">儲存</span>
+                            <i class="mdi mdi-loading" style="display: none;"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 操作回饋提示 (Snackbar) -->
+        <div id="snackbar" class="snackbar"></div>
+    </div>
+
+    <script type="module">
+        /**
+         * TaskAPI 類別
+         * 職責：處理所有與資料相關的操作（CRUD）。
+         * 這裡使用 localStorage 來模擬後端 API。
+         * 符合架構文件中 "後端 API" 與 "Axios 服務" 的角色。
+         */
+        class TaskAPI {
+            constructor() {
+                this.storageKey = 'tasks-data';
+                this._initializeMockData();
+            }
+
+            // 私有方法，初始化模擬資料
+            _initializeMockData() {
+                if (!localStorage.getItem(this.storageKey)) {
+                    const mockData = [
+                        { id: this._generateId(), title: "撰寫 specs 文件", description: "確認功能需求並抽出 API 規格", status: "pending", priority: "high", created_at: new Date().toISOString() },
+                        { id: this._generateId(), title: "完成前端 UI 切版", description: "根據設計稿實現 Vue 元件", status: "in-progress", priority: "medium", created_at: new Date().toISOString() },
+                        { id: this._generateId(), title: "API 介接與測試", description: "使用 Axios 呼叫後端 CRUD API", status: "completed", priority: "low", created_at: new Date().toISOString() },
+                    ];
+                    localStorage.setItem(this.storageKey, JSON.stringify(mockData));
+                }
+            }
+
+            _generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+
+            // 取得所有任務 (GET /api/tasks)
+            getTasks() {
+                const tasks = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                // 模擬 API 延遲
+                return new Promise(resolve => setTimeout(() => resolve(tasks), 200));
+            }
+
+            // 新增任務 (POST /api/tasks)
+            createTask(taskData) {
+                const tasks = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                const newTask = {
+                    ...taskData,
+                    id: this._generateId(),
+                    created_at: new Date().toISOString()
+                };
+                tasks.push(newTask);
+                localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+                return new Promise(resolve => setTimeout(() => resolve(newTask), 200));
+            }
+
+            // 更新任務 (PUT /api/tasks/:id)
+            updateTask(taskId, updatedData) {
+                let tasks = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                let taskToUpdate = null;
+                tasks = tasks.map(task => {
+                    if (task.id === taskId) {
+                        taskToUpdate = { ...task, ...updatedData, updated_at: new Date().toISOString() };
+                        return taskToUpdate;
+                    }
+                    return task;
+                });
+                localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+                return new Promise(resolve => setTimeout(() => resolve(taskToUpdate), 200));
+            }
+
+            // 刪除任務 (DELETE /api/tasks/:id)
+            deleteTask(taskId) {
+                let tasks = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                tasks = tasks.filter(task => task.id !== taskId);
+                localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+                return new Promise(resolve => setTimeout(() => resolve({ success: true }), 200));
+            }
+        }
+
+        /**
+         * UIController 類別
+         * 職責：處理所有與 DOM 相關的操作。
+         * 像是渲染任務列表、顯示/隱藏 Modal、顯示 Snackbar 等。
+         * 類似 Vue 元件的角色，負責將資料渲染到畫面上。
+         */
+        class UIController {
+            constructor() {
+                // DOM 元素快取
+                this.elements = {
+                    taskList: document.getElementById('task-list'),
+                    modalOverlay: document.getElementById('task-modal-overlay'),
+                    form: document.getElementById('task-form'),
+                    formTitle: document.getElementById('form-title'),
+                    taskIdInput: document.getElementById('task-id'),
+                    titleInput: document.getElementById('title'),
+                    descriptionInput: document.getElementById('description'),
+                    statusInput: document.getElementById('status'),
+                    priorityInput: document.getElementById('priority'),
+                    saveBtn: document.getElementById('save-btn'),
+                    saveBtnText: document.querySelector('#save-btn .btn-text'),
+                    saveBtnIcon: document.querySelector('#save-btn .mdi-loading'),
+                    snackbar: document.getElementById('snackbar'),
+                };
+            }
+            
+            // 渲染所有任務到列表
+            renderTasks(tasks) {
+                this.elements.taskList.innerHTML = ''; // 清空現有列表
+                if (tasks.length === 0) {
+                    this.elements.taskList.innerHTML = '<p style="color: #757575;">目前沒有任何任務。</p>';
+                    return;
+                }
+                tasks.forEach(task => {
+                    const taskCard = this._createTaskCard(task);
+                    this.elements.taskList.appendChild(taskCard);
+                });
+            }
+
+            // 建立單一任務卡片 DOM 元素
+            _createTaskCard(task) {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.dataset.id = task.id;
+
+                const priorityClass = `priority-${task.priority}`;
+                const statusClass = `status-${task.status.replace('-', '')}`;
+                const statusText = task.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                card.innerHTML = `
+                    <div class="task-card-header">
+                        <h3>${this._escapeHTML(task.title)}</h3>
+                        <div class="task-card-actions">
+                            <i class="mdi mdi-pencil icon-btn" data-action="edit" title="編輯任務"></i>
+                            <i class="mdi mdi-delete icon-btn" data-action="delete" title="刪除任務"></i>
+                        </div>
+                    </div>
+                    <p>${this._escapeHTML(task.description || '')}</p>
+                    <div class="task-card-footer">
+                        <div class="tags">
+                            <span class="tag ${priorityClass}">${task.priority.toUpperCase()}</span>
+                            <span class="tag ${statusClass}">${statusText}</span>
+                        </div>
+                        <span class="creation-date">${new Date(task.created_at).toLocaleDateString()}</span>
+                    </div>
+                `;
+                return card;
+            }
+
+            // 防止 XSS 攻擊
+            _escapeHTML(str) {
+                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            }
+            
+            // 顯示/隱藏 Modal
+            toggleModal(show = false) {
+                if (show) {
+                    this.elements.modalOverlay.classList.add('visible');
+                } else {
+                    this.elements.modalOverlay.classList.remove('visible');
+                }
+            }
+
+            // 顯示 Snackbar 提示訊息
+            showSnackbar(message) {
+                this.elements.snackbar.textContent = message;
+                this.elements.snackbar.classList.add('show');
+                setTimeout(() => {
+                    this.elements.snackbar.classList.remove('show');
+                }, 3000);
+            }
+
+            // 填充表單以供編輯
+            fillForm(task) {
+                this.elements.formTitle.textContent = '編輯任務';
+                this.elements.taskIdInput.value = task.id;
+                this.elements.titleInput.value = task.title;
+                this.elements.descriptionInput.value = task.description;
+                this.elements.statusInput.value = task.status;
+                this.elements.priorityInput.value = task.priority;
+            }
+
+            // 重設表單
+            resetForm() {
+                this.elements.formTitle.textContent = '新增任務';
+                this.elements.form.reset();
+                this.elements.taskIdInput.value = '';
+            }
+
+            // 切換儲存按鈕的載入狀態
+            toggleSaveButtonLoading(isLoading) {
+                this.elements.saveBtn.disabled = isLoading;
+                if (isLoading) {
+                    this.elements.saveBtn.classList.add('loading');
+                    this.elements.saveBtnText.style.display = 'none';
+                    this.elements.saveBtnIcon.style.display = 'inline-block';
+                } else {
+                    this.elements.saveBtn.classList.remove('loading');
+                    this.elements.saveBtnText.style.display = 'inline-block';
+                    this.elements.saveBtnIcon.style.display = 'none';
+                }
+            }
+        }
+
+        /**
+         * App 類別
+         * 職責：作為應用程式的進入點，協調 TaskAPI 和 UIController。
+         * 負責綁定事件監聽器和管理應用程式的整體流程。
+         * 就像 Vue 的 App.vue 或 main.js，是整個應用的協調者。
+         */
+        class App {
+            constructor(api, ui) {
+                this.api = api;
+                this.ui = ui;
+                this.tasks = []; // 狀態 (State)
+                this._bindEventListeners();
+                this.loadTasks();
+            }
+
+            // 綁定所有事件監聽器
+            _bindEventListeners() {
+                document.getElementById('add-task-btn').addEventListener('click', this.handleOpenModalForCreate.bind(this));
+                this.ui.elements.modalOverlay.addEventListener('click', this.handleCloseModal.bind(this));
+                document.getElementById('cancel-btn').addEventListener('click', () => this.ui.toggleModal(false));
+                this.ui.elements.form.addEventListener('submit', this.handleFormSubmit.bind(this));
+                this.ui.elements.taskList.addEventListener('click', this.handleTaskListClick.bind(this));
+            }
+            
+            // 載入並渲染任務
+            async loadTasks() {
+                this.tasks = await this.api.getTasks();
+                this.ui.renderTasks(this.tasks);
+            }
+            
+            // 處理開啟新增任務 Modal
+            handleOpenModalForCreate() {
+                this.ui.resetForm();
+                this.ui.toggleModal(true);
+            }
+            
+            // 處理關閉 Modal
+            handleCloseModal(event) {
+                if (event.target === this.ui.elements.modalOverlay) {
+                    this.ui.toggleModal(false);
+                }
+            }
+
+            // 處理表單提交 (新增或更新)
+            async handleFormSubmit(event) {
+                event.preventDefault();
+                this.ui.toggleSaveButtonLoading(true);
+
+                const id = this.ui.elements.taskIdInput.value;
+                const taskData = {
+                    title: this.ui.elements.titleInput.value,
+                    description: this.ui.elements.descriptionInput.value,
+                    status: this.ui.elements.statusInput.value,
+                    priority: this.ui.elements.priorityInput.value
+                };
+
+                try {
+                    if (id) { // 更新
+                        await this.api.updateTask(id, taskData);
+                        this.ui.showSnackbar('任務更新成功！');
+                    } else { // 新增
+                        await this.api.createTask(taskData);
+                        this.ui.showSnackbar('任務新增成功！');
+                    }
+                    this.ui.toggleModal(false);
+                    await this.loadTasks(); // 重新載入並渲染
+                } catch (error) {
+                    this.ui.showSnackbar('操作失敗，請稍後再試。');
+                    console.error("Form submit error:", error);
+                } finally {
+                    this.ui.toggleSaveButtonLoading(false);
+                }
+            }
+            
+            // 處理任務列表中的點擊事件 (編輯/刪除)
+            handleTaskListClick(event) {
+                const target = event.target;
+                const action = target.dataset.action;
+                if (!action) return;
+
+                const card = target.closest('.task-card');
+                const id = card.dataset.id;
+                
+                if (action === 'edit') {
+                    this.handleEditTask(id);
+                } else if (action === 'delete') {
+                    this.handleDeleteTask(id);
+                }
+            }
+
+            // 處理編輯任務
+            handleEditTask(id) {
+                const task = this.tasks.find(t => t.id === id);
+                if (task) {
+                    this.ui.fillForm(task);
+                    this.ui.toggleModal(true);
+                }
+            }
+
+            // 處理刪除任務
+            async handleDeleteTask(id) {
+                // 在實際應用中，這裡應該彈出一個確認對話框
+                if (confirm('您確定要刪除這個任務嗎？')) {
+                    try {
+                        await this.api.deleteTask(id);
+                        this.ui.showSnackbar('任務已刪除！');
+                        await this.loadTasks();
+                    } catch (error) {
+                        this.ui.showSnackbar('刪除失敗，請稍後再試。');
+                        console.error("Delete task error:", error);
+                    }
+                }
+            }
+        }
+
+        // --- 應用程式初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const api = new TaskAPI();
+            const ui = new UIController();
+            new App(api, ui);
+        });
+
+    </script>
+</body>
+</html>
