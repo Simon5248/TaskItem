@@ -48,7 +48,7 @@
         .tag.priority-medium { background-color: var(--medium-priority-color); }
         .tag.priority-low { background-color: var(--low-priority-color); }
         .tag.status-pending { background-color: #757575; }
-        .tag.status-in-progress { background-color: #1976d2; }
+        .tag.status-inprogress { background-color: #1976d2; }
         .tag.status-completed { background-color: #43a047; }
         .creation-date { color: #9e9e9e; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
@@ -63,6 +63,11 @@
         .btn-secondary { background-color: transparent; color: var(--primary-color); border: 1px solid #e0e0e0; }
         .snackbar { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #323232; color: white; padding: 14px 24px; border-radius: 4px; z-index: 2000; transition: bottom 0.5s ease-in-out; }
         .snackbar.show { bottom: 20px; }
+        .task-section { margin-bottom: 20px; }
+        .section-header { background: #fafafa; border: 1px solid #e0e0e0; color: var(--text-color); padding: 10px 16px; cursor: pointer; font-weight: 500; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s; }
+        .section-header:hover { background-color: #f0f0f0; }
+        .section-body { padding-top: 16px; }
+        .section-body.collapsed { display: none; }
     </style>
 </head>
 <body>
@@ -77,12 +82,12 @@
                 </div>
                 <div class="form-group">
                     <label for="password">密碼 (最少6位數)</label>
-                    <input type="password" id="password" class="form-control" required>
+                    <input type="password" id="password" class="form-control" required minlength="6">
                 </div>
                 <p id="auth-error" class="error-message"></p>
                 <div class="form-actions" style="justify-content: space-between;">
-                     <button type="button" class="btn btn-secondary" id="register-btn">註冊新帳號</button>
-                     <button type="submit" class="btn" id="login-btn">登入</button>
+                    <button type="button" class="btn btn-secondary" id="register-btn">註冊新帳號</button>
+                    <button type="submit" class="btn" id="login-btn">登入</button>
                 </div>
             </form>
         </div>
@@ -96,7 +101,28 @@
                 <button class="btn" id="add-task-btn"><i class="mdi mdi-plus"></i>新增任務</button>
             </div>
         </header>
-        <main><div class="task-list" id="task-list"></div></main>
+        <main>
+            <div id="task-sections">
+                <div class="task-section">
+                    <div class="section-header" data-section="pending">
+                        待處理 (Pending) <span id="toggle-pending">▼</span>
+                    </div>
+                    <div class="section-body task-list" id="section-pending"></div>
+                </div>
+                <div class="task-section">
+                    <div class="section-header" data-section="in-progress">
+                        進行中 (In Progress) <span id="toggle-in-progress">▼</span>
+                    </div>
+                    <div class="section-body task-list" id="section-in-progress"></div>
+                </div>
+                <div class="task-section">
+                    <div class="section-header" data-section="completed">
+                        已完成 (Completed) <span id="toggle-completed">▼</span>
+                    </div>
+                    <div class="section-body task-list" id="section-completed"></div>
+                </div>
+            </div>
+        </main>
     </div>
     <div class="modal-overlay" id="task-modal-overlay">
         <div class="modal-content" id="task-form-container">
@@ -138,7 +164,6 @@
             async _fetch(endpoint, options = {}) {
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
                 if (this.token) {
-                    console.log('API 2 請求:this.token', this.token);
                     headers['Authorization'] = `Bearer ${this.token}`;
                 }
 
@@ -149,7 +174,6 @@
                     throw new Error(errorData.message || '發生未知錯誤');
                 }
 
-                // DELETE 請求成功時可能沒有內容
                 if (response.status === 204) {
                     return null;
                 }
@@ -181,52 +205,155 @@
 
         /**
          * UIController 類別
-         * (與 Firebase 版本幾乎相同，此處為求簡潔，僅列出主要結構)
+         * 職責：管理所有 DOM 操作與 UI 狀態。
          */
         class UIController {
              constructor() {
                 this.elements = {
-                    authContainer: document.getElementById('auth-container'), appContainer: document.getElementById('app-container'),
-                    userEmailDisplay: document.getElementById('user-email'), authError: document.getElementById('auth-error'),
-                    loginForm: document.getElementById('login-form'), loginBtn: document.getElementById('login-btn'),
+                    authContainer: document.getElementById('auth-container'),
+                    appContainer: document.getElementById('app-container'),
+                    userEmailDisplay: document.getElementById('user-email'),
+                    authError: document.getElementById('auth-error'),
+                    loginForm: document.getElementById('login-form'),
+                    emailInput: document.getElementById('email'), // 新增
+                    passwordInput: document.getElementById('password'), // 新增
+                    loginBtn: document.getElementById('login-btn'),
                     registerBtn: document.getElementById('register-btn'),
-                    taskList: document.getElementById('task-list'), modalOverlay: document.getElementById('task-modal-overlay'),
-                    form: document.getElementById('task-form'), formTitle: document.getElementById('form-title'),
-                    taskIdInput: document.getElementById('task-id'), titleInput: document.getElementById('title'),
-                    descriptionInput: document.getElementById('description'), statusInput: document.getElementById('status'),
-                    priorityInput: document.getElementById('priority'), saveBtn: document.getElementById('save-btn'),
-                    snackbar: document.getElementById('snackbar'), confirmModal: document.getElementById('confirm-modal-overlay'),
-                    confirmTitle: document.getElementById('confirm-title'), confirmMessage: document.getElementById('confirm-message'),
-                    confirmOkBtn: document.getElementById('confirm-ok-btn'), confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
+                    taskSectionsContainer: document.getElementById('task-sections'), // 新增
+                    modalOverlay: document.getElementById('task-modal-overlay'),
+                    form: document.getElementById('task-form'),
+                    formTitle: document.getElementById('form-title'),
+                    taskIdInput: document.getElementById('task-id'),
+                    titleInput: document.getElementById('title'),
+                    descriptionInput: document.getElementById('description'),
+                    statusInput: document.getElementById('status'),
+                    priorityInput: document.getElementById('priority'),
+                    saveBtn: document.getElementById('save-btn'),
+                    snackbar: document.getElementById('snackbar'),
+                    confirmModal: document.getElementById('confirm-modal-overlay'),
+                    confirmTitle: document.getElementById('confirm-title'),
+                    confirmMessage: document.getElementById('confirm-message'),
+                    confirmOkBtn: document.getElementById('confirm-ok-btn'),
+                    confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
                 };
                 this._resolveConfirm = null;
             }
-            setupConfirmationModal() { this.elements.confirmCancelBtn.addEventListener('click', () => this.resolveConfirmation(false)); this.elements.confirmOkBtn.addEventListener('click', () => this.resolveConfirmation(true)); }
-            showConfirmation(title, message) { return new Promise(resolve => { this._resolveConfirm = resolve; this.elements.confirmTitle.textContent = title; this.elements.confirmMessage.textContent = message; this.elements.confirmModal.classList.add('visible'); }); }
-            resolveConfirmation(result) { if (this._resolveConfirm) { this.elements.confirmModal.classList.remove('visible'); this._resolveConfirm(result); this._resolveConfirm = null; } }
-            renderTasks(tasks) {
-                this.elements.taskList.innerHTML = '';
-                if (tasks.length === 0) { this.elements.taskList.innerHTML = '<p style="color: #757575; grid-column: 1 / -1; text-align: center;">太棒了！沒有待辦事項。</p>'; return; }
-                tasks.forEach(task => { const taskCard = this._createTaskCard(task); this.elements.taskList.appendChild(taskCard); });
+
+            setupConfirmationModal() {
+                this.elements.confirmCancelBtn.addEventListener('click', () => this.resolveConfirmation(false));
+                this.elements.confirmOkBtn.addEventListener('click', () => this.resolveConfirmation(true));
             }
+
+            showConfirmation(title, message) {
+                return new Promise(resolve => {
+                    this._resolveConfirm = resolve;
+                    this.elements.confirmTitle.textContent = title;
+                    this.elements.confirmMessage.textContent = message;
+                    this.elements.confirmModal.classList.add('visible');
+                });
+            }
+
+            resolveConfirmation(result) {
+                if (this._resolveConfirm) {
+                    this.elements.confirmModal.classList.remove('visible');
+                    this._resolveConfirm(result);
+                    this._resolveConfirm = null;
+                }
+            }
+
+            // 核心任務卡片產生器，具備安全性和互動性
             _createTaskCard(task) {
-                const card = document.createElement('div'); card.className = 'task-card'; card.dataset.id = task.id;
-                const priorityClass = `priority-${task.priority}`; const statusClass = `status-${task.status.replace('-', '')}`;
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.dataset.id = task.id;
+
+                const priorityClass = `priority-${task.priority}`;
+                // 處理 'in-progress' 這種帶有連字號的狀態
+                const statusClass = `status-${task.status.replace('-', '')}`;
+                
+                // 將 'in-progress' 轉為 'In Progress' 以便顯示
                 const statusText = task.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                const creationDate = new Date(task.created_at).toLocaleDateString();
-                card.innerHTML = `<div class="task-card-header"><h3>${this._escapeHTML(task.title)}</h3><div class="task-card-actions"><i class="mdi mdi-pencil icon-btn" data-action="edit" title="編輯任務"></i><i class="mdi mdi-delete icon-btn" data-action="delete" title="刪除任務"></i></div></div><p>${this._escapeHTML(task.description || '')}</p><div class="task-card-footer"><div class="tags"><span class="tag ${priorityClass}">${task.priority.toUpperCase()}</span><span class="tag ${statusClass}">${statusText}</span></div><span class="creation-date">${creationDate}</span></div>`;
+                
+                // 確保 created_at 存在
+                const creationDate = task.created_at ? new Date(task.created_at).toLocaleDateString() : 'N/A';
+
+                // 使用 innerHTML 一次性建立結構，並確保使用者輸入經過 HTML escape
+                card.innerHTML = `
+                    <div class="task-card-header">
+                        <h3>${this._escapeHTML(task.title)}</h3>
+                        <div class="task-card-actions">
+                            <i class="mdi mdi-pencil icon-btn" data-action="edit" title="編輯任務"></i>
+                            <i class="mdi mdi-delete icon-btn" data-action="delete" title="刪除任務"></i>
+                        </div>
+                    </div>
+                    <p>${this._escapeHTML(task.description || '')}</p>
+                    <div class="task-card-footer">
+                        <div class="tags">
+                            <span class="tag ${priorityClass}">${task.priority.toUpperCase()}</span>
+                            <span class="tag ${statusClass}">${statusText}</span>
+                        </div>
+                        <span class="creation-date">${creationDate}</span>
+                    </div>`;
                 return card;
             }
-            _escapeHTML(str) { return str ? str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : ''; }
-            toggleModal(show = false) { this.elements.modalOverlay.classList.toggle('visible', show); }
-            showSnackbar(message) { this.elements.snackbar.textContent = message; this.elements.snackbar.classList.add('show'); setTimeout(() => { this.elements.snackbar.classList.remove('show'); }, 3000); }
-            fillForm(task) { this.elements.formTitle.textContent = '編輯任務'; this.elements.taskIdInput.value = task.id; this.elements.titleInput.value = task.title; this.elements.descriptionInput.value = task.description; this.elements.statusInput.value = task.status; this.elements.priorityInput.value = task.priority; }
-            resetForm() { this.elements.formTitle.textContent = '新增任務'; this.elements.form.reset(); this.elements.taskIdInput.value = ''; }
-            toggleButtonLoading(btn, isLoading) { const text = btn.querySelector('.btn-text'); const icon = btn.querySelector('.mdi-loading'); btn.disabled = isLoading; if (isLoading) { btn.classList.add('loading'); if(text) text.style.display = 'none'; if(icon) icon.style.display = 'inline-block'; } else { btn.classList.remove('loading'); if(text) text.style.display = 'inline-block'; if(icon) icon.style.display = 'none'; } }
+
+            // 防止 XSS 攻擊
+            _escapeHTML(str) {
+                return str ? str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
+            }
+
+            toggleModal(show = false) {
+                this.elements.modalOverlay.classList.toggle('visible', show);
+            }
+
+            showSnackbar(message) {
+                this.elements.snackbar.textContent = message;
+                this.elements.snackbar.classList.add('show');
+                setTimeout(() => {
+                    this.elements.snackbar.classList.remove('show');
+                }, 3000);
+            }
+
+            fillForm(task) {
+                this.elements.formTitle.textContent = '編輯任務';
+                this.elements.taskIdInput.value = task.id;
+                this.elements.titleInput.value = task.title;
+                this.elements.descriptionInput.value = task.description;
+                this.elements.statusInput.value = task.status;
+                this.elements.priorityInput.value = task.priority;
+            }
+
+            resetForm() {
+                this.elements.formTitle.textContent = '新增任務';
+                this.elements.form.reset();
+                this.elements.taskIdInput.value = '';
+            }
+
+            toggleButtonLoading(btn, isLoading) {
+                const text = btn.querySelector('.btn-text');
+                const icon = btn.querySelector('.mdi-loading');
+                btn.disabled = isLoading;
+                if (isLoading) {
+                    btn.classList.add('loading');
+                    if (text) text.style.display = 'none';
+                    if (icon) icon.style.display = 'inline-block';
+                } else {
+                    btn.classList.remove('loading');
+                    if (text) text.style.display = 'inline-block';
+                    if (icon) icon.style.display = 'none';
+                }
+            }
+
             showAuthError(message) { this.elements.authError.textContent = message; }
             clearAuthError() { this.elements.authError.textContent = ''; }
             showApp(email) { this.elements.authContainer.style.display = 'none'; this.elements.appContainer.style.display = 'flex'; this.elements.userEmailDisplay.textContent = email; }
-            showLogin() { this.elements.authContainer.style.display = 'flex'; this.elements.appContainer.style.display = 'none'; this.elements.authError.textContent = ''; document.getElementById('email').value = ''; document.getElementById('password').value = ''; }
+            showLogin() { this.elements.authContainer.style.display = 'flex'; this.elements.appContainer.style.display = 'none'; this.clearAuthError(); this.elements.loginForm.reset(); }
+            
+            // 新增：摺疊區塊的 UI 邏輯
+            toggleSection(sectionBody, icon) {
+                sectionBody.classList.toggle('collapsed');
+                icon.textContent = sectionBody.classList.contains('collapsed') ? '►' : '▼';
+            }
         }
 
         /**
@@ -235,7 +362,7 @@
          */
         class App {
             constructor() {
-                this.api = new ApiService('http://127.0.0.1:3000'); // 指向我們的後端伺服器
+                this.api = new ApiService('http://127.0.0.1:3000'); // 指向您的後端伺服器
                 this.ui = new UIController();
                 this.tasks = [];
                 this._initializeApp();
@@ -261,21 +388,20 @@
             }
             
             _bindAuthEvents() {
-                 this.ui.elements.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-                 this.ui.elements.registerBtn.addEventListener('click', (e) => this.handleRegister(e));
+                this.ui.elements.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+                this.ui.elements.registerBtn.addEventListener('click', (e) => this.handleRegister(e));
             }
 
             async handleLogin(e) {
                 e.preventDefault();
                 this.ui.clearAuthError();
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
+                const email = this.ui.elements.emailInput.value;
+                const password = this.ui.elements.passwordInput.value;
                 try {
                     const data = await this.api.login(email, password);
                     localStorage.setItem('authToken', data.accessToken);
                     localStorage.setItem('userEmail', email);
-                    this.api.token = data.accessToken;
-                    console.log('登入成功:', this.api.token);
+                    this.api.setToken(data.accessToken);
                     this._checkLoginStatus();
                 } catch (error) {
                     this.ui.showAuthError(error.message);
@@ -285,47 +411,100 @@
             async handleRegister(e) {
                 e.preventDefault();
                 this.ui.clearAuthError();
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
+                const email = this.ui.elements.emailInput.value;
+                const password = this.ui.elements.passwordInput.value;
                 try {
                     const data = await this.api.register(email, password);
                     this.ui.showSnackbar(data.message + ' 請立即登入。');
-                    // 清空表單，讓使用者登入
-                    document.getElementById('password').value = '';
+                    this.ui.elements.passwordInput.value = '';
                 } catch (error) {
                     this.ui.showAuthError(error.message);
                 }
             }
 
             _bindAppEvents() {
+                // 登出按鈕
                 document.getElementById('logout-btn').addEventListener('click', () => {
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('userEmail');
                     this.api.setToken(null);
                     this.ui.showLogin();
                 });
+                
+                // 新增任務按鈕
                 document.getElementById('add-task-btn').addEventListener('click', () => { this.ui.resetForm(); this.ui.toggleModal(true); });
+                
+                // 點擊 Modal 外部關閉
                 this.ui.elements.modalOverlay.addEventListener('click', e => { if (e.target === this.ui.elements.modalOverlay) this.ui.toggleModal(false); });
+                
+                // 取消按鈕
                 document.getElementById('cancel-btn').addEventListener('click', () => this.ui.toggleModal(false));
+                
+                // 表單提交
                 this.ui.elements.form.addEventListener('submit', this.handleFormSubmit.bind(this));
-                this.ui.elements.taskList.addEventListener('click', this.handleTaskListClick.bind(this));
+                
+                // 使用事件委派處理所有任務列表中的點擊 (包括編輯、刪除)
+                this.ui.elements.taskSectionsContainer.addEventListener('click', this.handleTaskListClick.bind(this));
+                
+                // 使用事件委派處理 Section 的展開/收合
+                this.ui.elements.taskSectionsContainer.addEventListener('click', (e) => {
+                    const header = e.target.closest('.section-header');
+                    if (!header) return;
+
+                    const sectionName = header.dataset.section;
+                    const sectionBody = document.getElementById(`section-${sectionName}`);
+                    const icon = document.getElementById(`toggle-${sectionName}`);
+                    
+                    if (sectionBody && icon) {
+                        this.ui.toggleSection(sectionBody, icon);
+                    }
+                });
             }
             
             async loadTasks() {
                 try {
                     this.tasks = await this.api.getTasks();
-                    this.ui.renderTasks(this.tasks);
+                    this.renderTasksByStatus(this.tasks); // 使用統一的渲染方法
                 } catch (error) {
                     this.ui.showSnackbar('載入任務失敗: ' + error.message);
-                    // Token 可能過期或無效
                     if (error.message.toLowerCase().includes('unauthorized') || error.message.toLowerCase().includes('forbidden')) {
                         document.getElementById('logout-btn').click();
                     }
                 }
             }
+            
+            /**
+             * 統一的渲染方法：根據任務狀態分類並渲染任務
+             */
+            renderTasksByStatus(tasks) {
+                const sections = {
+                    'pending': document.getElementById('section-pending'),
+                    'in-progress': document.getElementById('section-in-progress'),
+                    'completed': document.getElementById('section-completed')
+                };
+
+                // 1. 先清空所有容器
+                Object.values(sections).forEach(section => section.innerHTML = '');
+
+                // 2. 將任務分類並使用 UIController 產生卡片 DOM 元素
+                tasks.forEach(task => {
+                    const taskCardElement = this.ui._createTaskCard(task);
+                    const statusKey = task.status;
+                    
+                    if (sections[statusKey]) {
+                        sections[statusKey].appendChild(taskCardElement);
+                    }
+                });
+
+                // 3. 如果分類後容器是空的，顯示提示訊息
+                Object.keys(sections).forEach(key => {
+                    if (!sections[key].hasChildNodes()) {
+                        sections[key].innerHTML = '<p style="color: #757575; padding: 16px; text-align: center;">此分類無任務</p>';
+                    }
+                });
+            }
 
             async handleFormSubmit(event) {
-                console.log('送出:', this.api.token);
                 event.preventDefault();
                 this.ui.toggleButtonLoading(this.ui.elements.saveBtn, true);
                 const id = this.ui.elements.taskIdInput.value;
@@ -353,14 +532,30 @@
             }
 
             handleTaskListClick(event) {
-                const target = event.target; const action = target.dataset.action;
-                if (!action) return;
-                const card = target.closest('.task-card'); const id = card.dataset.id;
-                if (action === 'edit') this.handleEditTask(id);
-                else if (action === 'delete') this.handleDeleteTask(id);
+                const target = event.target;
+                // 確保點擊的是圖示按鈕
+                if (!target.classList.contains('icon-btn')) return;
+
+                const action = target.dataset.action;
+                const card = target.closest('.task-card');
+                
+                if (!action || !card) return;
+                
+                const id = card.dataset.id;
+                if (action === 'edit') {
+                    this.handleEditTask(id);
+                } else if (action === 'delete') {
+                    this.handleDeleteTask(id);
+                }
             }
 
-            handleEditTask(id) { const task = this.tasks.find(t => t.id == id); if (task) { this.ui.fillForm(task); this.ui.toggleModal(true); } }
+            handleEditTask(id) {
+                const task = this.tasks.find(t => t.id == id);
+                if (task) {
+                    this.ui.fillForm(task);
+                    this.ui.toggleModal(true);
+                }
+            }
 
             async handleDeleteTask(id) {
                 const confirmed = await this.ui.showConfirmation('刪除任務', '您確定要永久刪除這個任務嗎？');
@@ -377,7 +572,9 @@
         }
 
         // --- 應用程式初始化 ---
-        new App();
+        document.addEventListener('DOMContentLoaded', function() {
+          new App();
+        });
     </script>
 </body>
 </html>
