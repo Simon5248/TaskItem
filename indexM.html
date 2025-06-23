@@ -138,6 +138,7 @@
             async _fetch(endpoint, options = {}) {
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
                 if (this.token) {
+                    console.log('API 2 請求:this.token', this.token);
                     headers['Authorization'] = `Bearer ${this.token}`;
                 }
 
@@ -234,7 +235,7 @@
          */
         class App {
             constructor() {
-                this.api = new ApiService('http://localhost:3000'); // 指向我們的後端伺服器
+                this.api = new ApiService('http://127.0.0.1:3000'); // 指向我們的後端伺服器
                 this.ui = new UIController();
                 this.tasks = [];
                 this._initializeApp();
@@ -273,6 +274,8 @@
                     const data = await this.api.login(email, password);
                     localStorage.setItem('authToken', data.accessToken);
                     localStorage.setItem('userEmail', email);
+                    this.api.token = data.accessToken;
+                    console.log('登入成功:', this.api.token);
                     this._checkLoginStatus();
                 } catch (error) {
                     this.ui.showAuthError(error.message);
@@ -322,6 +325,7 @@
             }
 
             async handleFormSubmit(event) {
+                console.log('送出:', this.api.token);
                 event.preventDefault();
                 this.ui.toggleButtonLoading(this.ui.elements.saveBtn, true);
                 const id = this.ui.elements.taskIdInput.value;
