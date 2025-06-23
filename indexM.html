@@ -4,15 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tasks 應用程式 (自架後端版)</title>
+    <!-- 字型與圖示 -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
     <style>
+        /* 主題色與全域樣式 */
         :root {
             --primary-color: #3f51b5; --accent-color: #ff4081; --text-color: #212121;
             --background-color: #f5f5f5; --surface-color: #ffffff; --high-priority-color: #f44336;
             --medium-priority-color: #ff9800; --low-priority-color: #4caf50; --error-color: #d32f2f;
         }
         body { font-family: 'Roboto', sans-serif; margin: 0; background-color: var(--background-color); color: var(--text-color); line-height: 1.6; overflow: hidden; }
+        /* 登入區塊樣式 */
         #auth-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
         #app-container { display: none; flex-direction: column; height: 100vh; }
         .login-card { background: var(--surface-color); padding: 32px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
@@ -21,10 +24,12 @@
         .login-card label { display: block; margin-bottom: 8px; font-weight: 500; }
         .login-card .form-control { width: 100%; padding: 12px; border: 1px solid #bdbdbd; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
         .login-card .error-message { color: var(--error-color); font-size: 0.8rem; margin-top: 4px; min-height: 1.2em; }
+        /* App Bar 樣式 */
         .app-bar { background-color: var(--primary-color); color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.2); height: 64px; flex-shrink: 0; }
         .app-bar h1 { font-size: 1.25rem; font-weight: 500; }
         .app-bar-user-info { display: flex; align-items: center; gap: 16px; }
         #user-email { font-size: 0.9rem; }
+        /* 按鈕樣式 */
         .btn { background-color: var(--accent-color); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; text-transform: uppercase; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
         .btn:hover { background-color: #e03571; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .btn.loading { cursor: not-allowed; background-color: #bdbdbd; }
@@ -32,6 +37,7 @@
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         #logout-btn { background-color: transparent; border: 1px solid white; }
         main { flex-grow: 1; padding: 24px; overflow-y: auto; }
+        /* 任務卡片樣式 */
         .task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
         .task-card { background-color: var(--surface-color); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.3s ease; }
         .task-card:hover { box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); }
@@ -51,6 +57,7 @@
         .tag.status-inprogress { background-color: #1976d2; }
         .tag.status-completed { background-color: #43a047; }
         .creation-date { color: #9e9e9e; }
+        /* Modal 樣式 */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
         .modal-overlay.visible { opacity: 1; visibility: visible; }
         .modal-content { background-color: var(--surface-color); padding: 24px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 11px 15px -7px rgba(0,0,0,0.2), 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12); transform: scale(0.95); transition: transform 0.3s ease; }
@@ -61,8 +68,10 @@
         .form-control { width: 100%; padding: 10px; border: 1px solid #bdbdbd; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
         .form-actions { margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px; }
         .btn-secondary { background-color: transparent; color: var(--primary-color); border: 1px solid #e0e0e0; }
+        /* Snackbar 樣式 */
         .snackbar { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #323232; color: white; padding: 14px 24px; border-radius: 4px; z-index: 2000; transition: bottom 0.5s ease-in-out; }
         .snackbar.show { bottom: 20px; }
+        /* 任務分區樣式 */
         .task-section { margin-bottom: 20px; }
         .section-header { background: #fafafa; border: 1px solid #e0e0e0; color: var(--text-color); padding: 10px 16px; cursor: pointer; font-weight: 500; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s; }
         .section-header:hover { background-color: #f0f0f0; }
@@ -71,6 +80,7 @@
     </style>
 </head>
 <body>
+    <!-- 登入/註冊區塊 -->
     <div id="auth-container">
         <div class="login-card">
             <h1>任務管理系統</h1>
@@ -92,6 +102,7 @@
             </form>
         </div>
     </div>
+    <!-- 主應用區塊 -->
     <div id="app-container">
         <header class="app-bar">
             <h1>我的任務</h1>
@@ -102,6 +113,7 @@
             </div>
         </header>
         <main>
+            <!-- 任務分區（可收合） -->
             <div id="task-sections">
                 <div class="task-section">
                     <div class="section-header" data-section="pending">
@@ -124,6 +136,7 @@
             </div>
         </main>
     </div>
+    <!-- 任務編輯/新增 Modal -->
     <div class="modal-overlay" id="task-modal-overlay">
         <div class="modal-content" id="task-form-container">
             <h2 id="form-title">新增任務</h2>
@@ -137,6 +150,7 @@
             </form>
         </div>
     </div>
+    <!-- 刪除確認 Modal -->
     <div class="modal-overlay" id="confirm-modal-overlay">
         <div class="modal-content">
             <h2 id="confirm-title">確認操作</h2>
@@ -144,6 +158,7 @@
             <div class="form-actions"><button type="button" class="btn btn-secondary" id="confirm-cancel-btn">取消</button><button type="button" class="btn" id="confirm-ok-btn">確定</button></div>
         </div>
     </div>
+    <!-- Snackbar 提示 -->
     <div id="snackbar" class="snackbar"></div>
 
     <script type="module">
@@ -153,14 +168,15 @@
          */
         class ApiService {
             constructor(baseUrl) {
-                this.baseUrl = baseUrl;
-                this.token = null;
+                this.baseUrl = baseUrl; // API 伺服器網址
+                this.token = null;      // JWT Token
             }
 
             setToken(token) {
-                this.token = token;
+                this.token = token; // 設定 JWT Token
             }
             
+            // 通用 fetch 方法，會自動帶入 token 與處理錯誤
             async _fetch(endpoint, options = {}) {
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
                 if (this.token) {
@@ -209,17 +225,18 @@
          */
         class UIController {
              constructor() {
+                // 快速存取所有常用 DOM 元素
                 this.elements = {
                     authContainer: document.getElementById('auth-container'),
                     appContainer: document.getElementById('app-container'),
                     userEmailDisplay: document.getElementById('user-email'),
                     authError: document.getElementById('auth-error'),
                     loginForm: document.getElementById('login-form'),
-                    emailInput: document.getElementById('email'), // 新增
-                    passwordInput: document.getElementById('password'), // 新增
+                    emailInput: document.getElementById('email'),
+                    passwordInput: document.getElementById('password'),
                     loginBtn: document.getElementById('login-btn'),
                     registerBtn: document.getElementById('register-btn'),
-                    taskSectionsContainer: document.getElementById('task-sections'), // 新增
+                    taskSectionsContainer: document.getElementById('task-sections'),
                     modalOverlay: document.getElementById('task-modal-overlay'),
                     form: document.getElementById('task-form'),
                     formTitle: document.getElementById('form-title'),
@@ -239,11 +256,13 @@
                 this._resolveConfirm = null;
             }
 
+            // 設定刪除確認視窗的事件
             setupConfirmationModal() {
                 this.elements.confirmCancelBtn.addEventListener('click', () => this.resolveConfirmation(false));
                 this.elements.confirmOkBtn.addEventListener('click', () => this.resolveConfirmation(true));
             }
 
+            // 顯示確認視窗，回傳 Promise
             showConfirmation(title, message) {
                 return new Promise(resolve => {
                     this._resolveConfirm = resolve;
@@ -253,6 +272,7 @@
                 });
             }
 
+            // 關閉確認視窗
             resolveConfirmation(result) {
                 if (this._resolveConfirm) {
                     this.elements.confirmModal.classList.remove('visible');
@@ -261,23 +281,21 @@
                 }
             }
 
-            // 核心任務卡片產生器，具備安全性和互動性
+            // 產生單一任務卡片 DOM
             _createTaskCard(task) {
                 const card = document.createElement('div');
                 card.className = 'task-card';
                 card.dataset.id = task.id;
 
                 const priorityClass = `priority-${task.priority}`;
-                // 處理 'in-progress' 這種帶有連字號的狀態
+                // 狀態 class，去掉連字號
                 const statusClass = `status-${task.status.replace('-', '')}`;
-                
-                // 將 'in-progress' 轉為 'In Progress' 以便顯示
+                // 狀態顯示文字
                 const statusText = task.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                
-                // 確保 created_at 存在
+                // 建立日期
                 const creationDate = task.created_at ? new Date(task.created_at).toLocaleDateString() : 'N/A';
 
-                // 使用 innerHTML 一次性建立結構，並確保使用者輸入經過 HTML escape
+                // 卡片內容
                 card.innerHTML = `
                     <div class="task-card-header">
                         <h3>${this._escapeHTML(task.title)}</h3>
@@ -302,10 +320,12 @@
                 return str ? str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
             }
 
+            // 開關任務編輯/新增 Modal
             toggleModal(show = false) {
                 this.elements.modalOverlay.classList.toggle('visible', show);
             }
 
+            // 顯示 Snackbar 提示
             showSnackbar(message) {
                 this.elements.snackbar.textContent = message;
                 this.elements.snackbar.classList.add('show');
@@ -314,6 +334,7 @@
                 }, 3000);
             }
 
+            // 填入表單資料（編輯用）
             fillForm(task) {
                 this.elements.formTitle.textContent = '編輯任務';
                 this.elements.taskIdInput.value = task.id;
@@ -323,12 +344,14 @@
                 this.elements.priorityInput.value = task.priority;
             }
 
+            // 重設表單（新增用）
             resetForm() {
                 this.elements.formTitle.textContent = '新增任務';
                 this.elements.form.reset();
                 this.elements.taskIdInput.value = '';
             }
 
+            // 儲存按鈕 loading 狀態切換
             toggleButtonLoading(btn, isLoading) {
                 const text = btn.querySelector('.btn-text');
                 const icon = btn.querySelector('.mdi-loading');
@@ -344,12 +367,15 @@
                 }
             }
 
+            // 顯示/清除登入錯誤訊息
             showAuthError(message) { this.elements.authError.textContent = message; }
             clearAuthError() { this.elements.authError.textContent = ''; }
+            // 顯示主畫面
             showApp(email) { this.elements.authContainer.style.display = 'none'; this.elements.appContainer.style.display = 'flex'; this.elements.userEmailDisplay.textContent = email; }
+            // 顯示登入畫面
             showLogin() { this.elements.authContainer.style.display = 'flex'; this.elements.appContainer.style.display = 'none'; this.clearAuthError(); this.elements.loginForm.reset(); }
             
-            // 新增：摺疊區塊的 UI 邏輯
+            // 摺疊/展開分區
             toggleSection(sectionBody, icon) {
                 sectionBody.classList.toggle('collapsed');
                 icon.textContent = sectionBody.classList.contains('collapsed') ? '►' : '▼';
@@ -368,6 +394,7 @@
                 this._initializeApp();
             }
 
+            // 初始化應用程式
             _initializeApp() {
                 this.ui.setupConfirmationModal();
                 this._bindAuthEvents();
@@ -375,6 +402,7 @@
                 this._checkLoginStatus();
             }
 
+            // 檢查登入狀態
             _checkLoginStatus() {
                 const token = localStorage.getItem('authToken');
                 const email = localStorage.getItem('userEmail');
@@ -387,11 +415,13 @@
                 }
             }
             
+            // 綁定登入/註冊事件
             _bindAuthEvents() {
                 this.ui.elements.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
                 this.ui.elements.registerBtn.addEventListener('click', (e) => this.handleRegister(e));
             }
 
+            // 處理登入
             async handleLogin(e) {
                 e.preventDefault();
                 this.ui.clearAuthError();
@@ -408,6 +438,7 @@
                 }
             }
 
+            // 處理註冊
             async handleRegister(e) {
                 e.preventDefault();
                 this.ui.clearAuthError();
@@ -422,6 +453,7 @@
                 }
             }
 
+            // 綁定主畫面事件
             _bindAppEvents() {
                 // 登出按鈕
                 document.getElementById('logout-btn').addEventListener('click', () => {
@@ -443,10 +475,10 @@
                 // 表單提交
                 this.ui.elements.form.addEventListener('submit', this.handleFormSubmit.bind(this));
                 
-                // 使用事件委派處理所有任務列表中的點擊 (包括編輯、刪除)
+                // 任務卡片事件（編輯、刪除）
                 this.ui.elements.taskSectionsContainer.addEventListener('click', this.handleTaskListClick.bind(this));
                 
-                // 使用事件委派處理 Section 的展開/收合
+                // 分區展開/收合
                 this.ui.elements.taskSectionsContainer.addEventListener('click', (e) => {
                     const header = e.target.closest('.section-header');
                     if (!header) return;
@@ -461,6 +493,7 @@
                 });
             }
             
+            // 載入任務
             async loadTasks() {
                 try {
                     this.tasks = await this.api.getTasks();
@@ -474,7 +507,7 @@
             }
             
             /**
-             * 統一的渲染方法：根據任務狀態分類並渲染任務
+             * 根據任務狀態分類並渲染任務
              */
             renderTasksByStatus(tasks) {
                 const sections = {
@@ -504,6 +537,7 @@
                 });
             }
 
+            // 表單送出（新增/編輯任務）
             async handleFormSubmit(event) {
                 event.preventDefault();
                 this.ui.toggleButtonLoading(this.ui.elements.saveBtn, true);
@@ -531,6 +565,7 @@
                 }
             }
 
+            // 處理任務卡片上的點擊（編輯/刪除）
             handleTaskListClick(event) {
                 const target = event.target;
                 // 確保點擊的是圖示按鈕
@@ -549,6 +584,7 @@
                 }
             }
 
+            // 編輯任務
             handleEditTask(id) {
                 const task = this.tasks.find(t => t.id == id);
                 if (task) {
@@ -557,6 +593,7 @@
                 }
             }
 
+            // 刪除任務
             async handleDeleteTask(id) {
                 const confirmed = await this.ui.showConfirmation('刪除任務', '您確定要永久刪除這個任務嗎？');
                 if (confirmed) {
