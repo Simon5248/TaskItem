@@ -92,7 +92,17 @@
                 </div>
                 <div class="form-group">
                     <label for="password">密碼 (最少6位數)</label>
-                    <input type="password" id="password" class="form-control" required minlength="6">
+                    <input
+                        type="password"
+                        id="password"
+                        class="form-control"
+                        required
+                        minlength="6"
+                        maxlength="64"
+                        autocomplete="new-password"
+                        inputmode="text"
+                        spellcheck="false"
+                    />
                 </div>
                 <p id="auth-error" class="error-message"></p>
                 <div class="form-actions" style="justify-content: space-between;">
@@ -142,14 +152,62 @@
             <h2 id="form-title">新增任務</h2>
             <form id="task-form">
                 <input type="hidden" id="task-id">
-                <div class="form-group"><label for="title">標題</label><input type="text" id="title" class="form-control" required></div>
-                <div class="form-group"><label for="description">描述</label><textarea id="description" class="form-control" rows="3"></textarea></div>
-                <div class="form-group"><label for="status">狀態</label><select id="status" class="form-control"><option value="pending">待處理</option><option value="in-progress">進行中</option><option value="completed">已完成</option></select></div>
-                <div class="form-group"><label for="priority">優先級</label><select id="priority" class="form-control"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div>
-                <div class="form-actions"><button type="button" class="btn btn-secondary" id="cancel-btn">取消</button><button type="submit" class="btn" id="save-btn"><span class="btn-text">儲存</span><i class="mdi mdi-loading" style="display: none;"></i></button></div>
+                <div class="form-group">
+                    <label for="title">標題</label>
+                    <input type="text" id="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">描述</label>
+                    <!-- HTML 編輯器 -->
+                    <div style="border: 1px solid #bdbdbd; border-radius: 4px;">
+                        <div style="background: #f5f5f5; padding: 4px; border-bottom: 1px solid #e0e0e0;">
+                            <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('bold',false,null);"><b>B</b></button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('italic',false,null);"><i>I</i></button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('underline',false,null);"><u>U</u></button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('insertUnorderedList',false,null);">•</button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('insertOrderedList',false,null);">1.</button>
+                        </div>
+                        <div id="description" class="form-control" contenteditable="true" rows="3" style="min-height:80px;outline:none;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="status">狀態</label>
+                    <select id="status" class="form-control">
+                        <option value="pending">待處理</option>
+                        <option value="in-progress">進行中</option>
+                        <option value="completed">已完成</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="priority">優先級</label>
+                    <select id="priority" class="form-control">
+                        <option value="low">低</option>
+                        <option value="medium">中</option>
+                        <option value="high">高</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+                    <button type="submit" class="btn" id="save-btn">
+                        <span class="btn-text">儲存</span>
+                        <i class="mdi mdi-loading" style="display: none;"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
+    <script>
+    // 將 contenteditable 的內容同步到 JS 表單
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('task-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // 將 description 的 HTML 存到一個隱藏欄位或直接在 JS 取 innerHTML
+                // 這裡不需要 textarea，直接用 contenteditable
+            });
+        }
+    });
+    </script>
     <!-- 刪除確認 Modal -->
     <div class="modal-overlay" id="confirm-modal-overlay">
         <div class="modal-content">
@@ -292,9 +350,20 @@
                 const statusClass = `status-${task.status.replace('-', '')}`;
                 // 狀態顯示文字
                 const statusText = task.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                // 建立日期
-                const creationDate = task.created_at ? new Date(task.created_at).toLocaleDateString() : 'N/A';
 
+                // 修正日期處理
+                const rawDate = task.createdAt;
+                
+                let creationDate = 'N/A';
+                if (rawDate) {
+                    const d = new Date(rawDate);
+                    if (!isNaN(d.getTime())) {
+                        creationDate = d.toLocaleDateString();
+                    }
+                }
+
+                const safeDescription = task.description || '';
+                
                 // 卡片內容
                 card.innerHTML = `
                     <div class="task-card-header">
@@ -304,7 +373,7 @@
                             <i class="mdi mdi-delete icon-btn" data-action="delete" title="刪除任務"></i>
                         </div>
                     </div>
-                    <p>${this._escapeHTML(task.description || '')}</p>
+                    <div class="task-description">${safeDescription}</div>
                     <div class="task-card-footer">
                         <div class="tags">
                             <span class="tag ${priorityClass}">${task.priority.toUpperCase()}</span>
@@ -339,7 +408,8 @@
                 this.elements.formTitle.textContent = '編輯任務';
                 this.elements.taskIdInput.value = task.id;
                 this.elements.titleInput.value = task.title;
-                this.elements.descriptionInput.value = task.description;
+                //this.elements.descriptionInput.value = task.description;
+                this.elements.descriptionInput.innerHTML = task.description || '';
                 this.elements.statusInput.value = task.status;
                 this.elements.priorityInput.value = task.priority;
             }
@@ -348,7 +418,13 @@
             resetForm() {
                 this.elements.formTitle.textContent = '新增任務';
                 this.elements.form.reset();
-                this.elements.taskIdInput.value = '';
+                //this.elements.taskIdInput.value = '';
+                this.elements.descriptionInput.innerHTML = '';
+            }
+
+            // 新增：獲取 description 內容的方法
+            getDescriptionContent() {
+                return this.elements.descriptionInput.innerHTML;
             }
 
             // 儲存按鈕 loading 狀態切換
@@ -388,9 +464,10 @@
          */
         class App {
             constructor() {
-                this.api = new ApiService('http://127.0.0.1:3000'); // 指向您的後端伺服器
+                this.api = new ApiService('http://127.0.0.1:3000');
                 this.ui = new UIController();
                 this.tasks = [];
+                this.logoutTimer = null; // 新增
                 this._initializeApp();
             }
 
@@ -402,13 +479,60 @@
                 this._checkLoginStatus();
             }
 
-            // 檢查登入狀態
+            // 解析 JWT，取得 payload
+            _parseJwt(token) {
+                try {
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    return JSON.parse(jsonPayload);
+                } catch {
+                    return null;
+                }
+            }
+
+            // 設定自動登出計時器
+            _setAutoLogout(token) {
+                if (this.logoutTimer) clearTimeout(this.logoutTimer);
+                const payload = this._parseJwt(token);
+                if (payload && payload.exp) {
+                    const expMs = payload.exp * 1000;
+                    const now = Date.now();
+                    if (expMs > now) {
+                        this.logoutTimer = setTimeout(() => {
+                            this._handleSessionExpired();
+                        }, expMs - now);
+                    } else {
+                        this._handleSessionExpired();
+                    }
+                }
+            }
+
+            // 處理 session 過期
+            _handleSessionExpired() {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userEmail');
+                this.api.setToken(null);
+                this.ui.showLogin();
+                this.ui.showSnackbar('登入逾時，請重新登入。');
+            }
+
+            // 修改 _checkLoginStatus
             _checkLoginStatus() {
                 const token = localStorage.getItem('authToken');
                 const email = localStorage.getItem('userEmail');
                 if (token && email) {
+                    // 新增：檢查 token 是否過期
+                    const payload = this._parseJwt(token);
+                    if (!payload || !payload.exp || payload.exp * 1000 < Date.now()) {
+                        this._handleSessionExpired();
+                        return;
+                    }
                     this.api.setToken(token);
                     this.ui.showApp(email);
+                    this._setAutoLogout(token); // 新增
                     this.loadTasks();
                 } else {
                     this.ui.showLogin();
@@ -432,6 +556,7 @@
                     localStorage.setItem('authToken', data.accessToken);
                     localStorage.setItem('userEmail', email);
                     this.api.setToken(data.accessToken);
+                    this._setAutoLogout(data.accessToken); // 新增
                     this._checkLoginStatus();
                 } catch (error) {
                     this.ui.showAuthError(error.message);
@@ -453,13 +578,13 @@
                 }
             }
 
-            // 綁定主畫面事件
+            // 修改登出按鈕事件
             _bindAppEvents() {
-                // 登出按鈕
                 document.getElementById('logout-btn').addEventListener('click', () => {
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('userEmail');
                     this.api.setToken(null);
+                    if (this.logoutTimer) clearTimeout(this.logoutTimer); // 新增
                     this.ui.showLogin();
                 });
                 
@@ -544,7 +669,8 @@
                 const id = this.ui.elements.taskIdInput.value;
                 const taskData = {
                     title: this.ui.elements.titleInput.value,
-                    description: this.ui.elements.descriptionInput.value,
+                    //description: this.ui.elements.descriptionInput.value,
+                    description: this.ui.getDescriptionContent(),
                     status: this.ui.elements.statusInput.value,
                     priority: this.ui.elements.priorityInput.value
                 };
@@ -607,6 +733,69 @@
                 }
             }
         }
+
+
+        // 額外建議：加入 CSS 樣式來美化 description 顯示
+        const additionalCSS = `
+        /* 任務描述區域樣式 */
+        .task-description {
+            margin: 8px 0;
+            color: #616161;
+            font-size: 0.9rem;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .task-description b, .task-description strong {
+            font-weight: 600;
+            color: #424242;
+        }
+
+        .task-description i, .task-description em {
+            font-style: italic;
+        }
+
+        .task-description u {
+            text-decoration: underline;
+        }
+
+        .task-description ul, .task-description ol {
+            margin: 4px 0 4px 20px;
+            padding: 0;
+        }
+
+        .task-description li {
+            margin: 2px 0;
+        }
+
+        /* contenteditable 編輯器樣式改進 */
+        #description {
+            min-height: 80px;
+            outline: none;
+            padding: 10px;
+            line-height: 1.4;
+        }
+
+        #description:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+        }
+
+        #description ul, #description ol {
+            margin: 8px 0 8px 20px;
+            padding: 0;
+        }
+
+        #description li {
+            margin: 4px 0;
+        }
+        `;
+
+        // 將額外的 CSS 加入到頁面
+        const style = document.createElement('style');
+        style.textContent = additionalCSS;
+        document.head.appendChild(style);
+
 
         // --- 應用程式初始化 ---
         document.addEventListener('DOMContentLoaded', function() {
