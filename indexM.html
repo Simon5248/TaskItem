@@ -166,6 +166,65 @@
                             <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('underline',false,null);"><u>U</u></button>
                             <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('insertUnorderedList',false,null);">•</button>
                             <button type="button" class="btn btn-secondary" style="padding:2px 6px;font-size:1em;" onclick="document.getElementById('description').focus();document.execCommand('insertOrderedList',false,null);">1.</button>
+                            <!-- 字體大小 -->
+                            <select id="font-size-select" style="margin-left:8px;" onchange="setFontSize(this.value)">
+                                <option value="">字體大小</option>
+                                <option value="1">極小</option>
+                                <option value="2">小</option>
+                                <option value="3">正常</option>
+                                <option value="4">大</option>
+                                <option value="5">較大</option>
+                                <option value="6">特大</option>
+                                <option value="7">最大</option>
+                            </select>
+                            <!-- 字體顏色選擇器與套用按鈕（美化版） -->
+                            <div style="display:inline-flex;align-items:center;margin-left:8px;">
+                                <!-- 三個快速顏色按鈕 -->
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    style="padding:2px 8px;margin-right:2px;background:transparent;border:none;box-shadow:none;"
+                                    onclick="quickFontColor('#e53935')"
+                                    title="紅色"
+                                >
+                                    <span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:#e53935;border:1.5px solid #bdbdbd;"></span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    style="padding:2px 8px;margin-right:2px;background:transparent;border:none;box-shadow:none;"
+                                    onclick="quickFontColor('#222')"
+                                    title="黑色"
+                                >
+                                    <span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:#222;border:1.5px solid #bdbdbd;"></span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    style="padding:2px 8px;margin-right:2px;background:transparent;border:none;box-shadow:none;"
+                                    onclick="quickFontColor('#43a047')"
+                                    title="綠色"
+                                >
+                                    <span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:#43a047;border:1.5px solid #bdbdbd;"></span>
+                                </button>
+                                <!-- 原本的顏色套用按鈕與色盤 -->
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    style="padding:2px 10px;font-size:1em;margin-left:4px;display:inline-flex;align-items:center;gap:4px;"
+                                    onclick="applyFontColor()"
+                                    title="套用選取顏色到反白文字"
+                                >
+                                    <i class="mdi mdi-format-color-text" style="font-size:1.2em;color:var(--primary-color);vertical-align:middle;"></i>
+                                    <span style="font-size:0.95em;">套用</span>
+                                </button>
+                                <input
+                                    type="color"
+                                    id="font-color-picker"
+                                    title="字體顏色"
+                                    style="width:28px;height:28px;border:none;background:transparent;cursor:pointer;vertical-align:middle;"
+                                    aria-label="選擇字體顏色">
+                            </div>
                         </div>
                         <div id="description" class="form-control" contenteditable="true" rows="3" style="min-height:80px;outline:none;"></div>
                     </div>
@@ -801,6 +860,23 @@
         document.addEventListener('DOMContentLoaded', function() {
           new App();
         });
+    </script>
+    <!-- 請加在 </body> 前，或 type="module" 之前 -->
+    <script>
+function setFontSize(size) {
+    document.getElementById('description').focus();
+    if (size) document.execCommand('fontSize', false, size);
+}
+function applyFontColor() {
+    const color = document.getElementById('font-color-picker').value;
+    document.getElementById('description').focus();
+    if (color) document.execCommand('foreColor', false, color);
+}
+// 新增：快速套用指定顏色
+function quickFontColor(color) {
+    document.getElementById('description').focus();
+    if (color) document.execCommand('foreColor', false, color);
+}
     </script>
 </body>
 </html>
