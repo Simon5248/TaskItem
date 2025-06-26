@@ -863,20 +863,20 @@
     </script>
     <!-- 請加在 </body> 前，或 type="module" 之前 -->
     <script>
-function setFontSize(size) {
-    document.getElementById('description').focus();
-    if (size) document.execCommand('fontSize', false, size);
-}
-function applyFontColor() {
-    const color = document.getElementById('font-color-picker').value;
-    document.getElementById('description').focus();
-    if (color) document.execCommand('foreColor', false, color);
-}
-// 新增：快速套用指定顏色
-function quickFontColor(color) {
-    document.getElementById('description').focus();
-    if (color) document.execCommand('foreColor', false, color);
-}
+    function setFontSize(size) {
+        document.getElementById('description').focus();
+        if (size) document.execCommand('fontSize', false, size);
+    }
+    function applyFontColor() {
+        const color = document.getElementById('font-color-picker').value;
+        document.getElementById('description').focus();
+        if (color) document.execCommand('foreColor', false, color);
+    }
+    // 新增：快速套用指定顏色
+    function quickFontColor(color) {
+        document.getElementById('description').focus();
+        if (color) document.execCommand('foreColor', false, color);
+    }
     </script>
 </body>
 </html>
