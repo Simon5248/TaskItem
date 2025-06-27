@@ -120,28 +120,32 @@
                 <span id="user-email"></span>
                 <button class="btn" id="logout-btn">登出</button>
                 <button class="btn" id="add-task-btn"><i class="mdi mdi-plus"></i>新增任務</button>
+                <!-- 新增匯出按鈕 -->
+                <button class="btn" id="export-tasks-btn"><i class="mdi mdi-download"></i>匯出任務</button>
             </div>
         </header>
         <main>
-            <!-- 任務分區（可收合） -->
-            <div id="task-sections">
-                <div class="task-section">
-                    <div class="section-header" data-section="pending">
-                        待處理 (Pending) <span id="toggle-pending">▼</span>
+            <div id="task-list-export">
+                <!-- 任務分區（可收合） -->
+                <div id="task-sections">
+                    <div class="task-section">
+                        <div class="section-header" data-section="pending">
+                            待處理 (Pending) <span id="toggle-pending">▼</span>
+                        </div>
+                        <div class="section-body task-list" id="section-pending"></div>
                     </div>
-                    <div class="section-body task-list" id="section-pending"></div>
-                </div>
-                <div class="task-section">
-                    <div class="section-header" data-section="in-progress">
-                        進行中 (In Progress) <span id="toggle-in-progress">▼</span>
+                    <div class="task-section">
+                        <div class="section-header" data-section="in-progress">
+                            進行中 (In Progress) <span id="toggle-in-progress">▼</span>
+                        </div>
+                        <div class="section-body task-list" id="section-in-progress"></div>
                     </div>
-                    <div class="section-body task-list" id="section-in-progress"></div>
-                </div>
-                <div class="task-section">
-                    <div class="section-header" data-section="completed">
-                        已完成 (Completed) <span id="toggle-completed">▼</span>
+                    <div class="task-section">
+                        <div class="section-header" data-section="completed">
+                            已完成 (Completed) <span id="toggle-completed">▼</span>
+                        </div>
+                        <div class="section-body task-list" id="section-completed"></div>
                     </div>
-                    <div class="section-body task-list" id="section-completed"></div>
                 </div>
             </div>
         </main>
@@ -151,7 +155,7 @@
         <div class="modal-content" id="task-form-container">
             <h2 id="form-title">新增任務</h2>
             <form id="task-form">
-                <input type="hidden" id="task-id">
+                <input type="text" id="task-id">
                 <div class="form-group">
                     <label for="title">標題</label>
                     <input type="text" id="title" class="form-control" required>
@@ -477,7 +481,7 @@
             resetForm() {
                 this.elements.formTitle.textContent = '新增任務';
                 this.elements.form.reset();
-                //this.elements.taskIdInput.value = '';
+                this.elements.taskIdInput.value = '';
                 this.elements.descriptionInput.innerHTML = '';
             }
 
@@ -650,6 +654,21 @@
                 // 新增任務按鈕
                 document.getElementById('add-task-btn').addEventListener('click', () => { this.ui.resetForm(); this.ui.toggleModal(true); });
                 
+                // 新增：匯出任務按鈕
+                // document.getElementById('export-tasks-btn').addEventListener('click', () => this.exportTasks());
+                document.getElementById('export-tasks-btn').addEventListener('click', () => {
+                    const element = document.getElementById('task-list-export');
+                    if (!element) {
+                        this.ui.showSnackbar('找不到任務列表區塊');
+                        return;
+                    }
+                    html2pdf().from(element).set({
+                        margin: 10,
+                        filename: `tasks_${new Date().toISOString().slice(0,10)}.pdf`,
+                        html2canvas: { scale: 2 }
+                    }).save();
+                });
+
                 // 點擊 Modal 外部關閉
                 this.ui.elements.modalOverlay.addEventListener('click', e => { if (e.target === this.ui.elements.modalOverlay) this.ui.toggleModal(false); });
                 
@@ -791,6 +810,26 @@
                     }
                 }
             }
+
+            // 新增：匯出任務功能
+            exportTasks() {
+                if (!this.tasks || this.tasks.length === 0) {
+                    this.ui.showSnackbar('沒有任務可匯出');
+                    return;
+                }
+                const dataStr = JSON.stringify(this.tasks, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tasks_export_${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.ui.showSnackbar('任務已匯出');
+                
+            }
         }
 
 
@@ -878,5 +917,7 @@
         if (color) document.execCommand('foreColor', false, color);
     }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
