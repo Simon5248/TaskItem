@@ -7,6 +7,8 @@
     <!-- 字型與圖示 -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         /* 主題色與全域樣式 */
         :root {
@@ -65,6 +67,22 @@
         /* 任務卡片樣式 */
         .task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
         .task-card { background-color: var(--surface-color); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.3s ease; }
+        .task-card:active { cursor: grabbing; }
+
+        /* START MODIFICATION: 拖放過程中的視覺回饋樣式 */
+        .task-card.sortable-ghost {
+            background: #eef2ff;
+            border: 2px dashed var(--primary-color);
+            opacity: 0.5;
+        }
+        .task-card.sortable-drag {
+            opacity: 0.9;
+            transform: rotate(3deg);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        .task-card.overdue { border-left-color: var(--overdue-color); }
+        .task-card.due-soon { border-left-color: var(--due-soon-color); }
+        /* END MODIFICATION */
         .task-card:hover { box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); }
         .task-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .task-card-header h3 { margin: 0; font-size: 1.1rem; font-weight: 500; }
@@ -208,7 +226,7 @@
                     <input type="date" id="due-date" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label for="description">描述</label>
+                    <label>描述</label>
                     <!-- HTML 編輯器 -->
                     <div style="border: 1px solid #bdbdbd; border-radius: 4px;">
                         <div style="background: #f5f5f5; padding: 4px; border-bottom: 1px solid #e0e0e0;">
@@ -386,6 +404,9 @@
             getTasks() { return this._fetch('/api/tasks'); }
             createTask(taskData) { return this._fetch('/api/tasks', { method: 'POST', body: JSON.stringify(taskData) }); }
             updateTask(taskId, taskData) { return this._fetch(`/api/tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(taskData) }); }
+            // START MODIFICATION: 在 ApiService 中新增 updateTaskStatus 方法
+            updateTaskStatus(taskId, status) { return this._fetch(`/api/tasks/${taskId}/status`, { method: 'PATCH',body: JSON.stringify({ status: status })}); }            
+            // END MODIFICATION
             deleteTask(taskId) { return this._fetch(`/api/tasks/${taskId}`, { method: 'DELETE' }); }
         }
 
@@ -632,6 +653,9 @@
                 this._bindAuthEvents();
                 this._bindAppEvents();
                 this._checkLoginStatus();
+                // START MODIFICATION: 初始化拖放功能
+                this._initializeDragAndDrop();
+                // END MODIFICATION
             }
 
             // 解析 JWT，取得 payload
@@ -795,7 +819,63 @@
  
 
             }
-            
+            // START MODIFICATION: 新增 _initializeDragAndDrop 方法
+            /**
+             * 初始化 SortableJS 拖放功能
+             */
+            _initializeDragAndDrop() {
+                const lists = document.querySelectorAll('.task-list');
+                lists.forEach(list => {
+                    new Sortable(list, {
+                        group: 'tasks', // 讓所有列表可以互相拖放
+                        animation: 150,
+                        ghostClass: 'sortable-ghost', // 拖放時佔位元素的 class
+                        dragClass: 'sortable-drag',   // 被拖曳元素的 class
+                        onEnd: async (evt) => {
+                            const { item, to, from } = evt;
+                            const taskId = item.dataset.id;
+                            
+                            // 如果只是在同一個列表內排序，或沒有移動到新的列表，則不處理
+                            if (from === to) { return; }
+
+                            // 從目標列表的 ID 中解析出新的狀態
+                            // e.g., 'section-in-progress' -> 'in-progress'
+                            const newStatus = to.id.replace('section-', '');
+
+                            // 找到被移動的任務
+                            const task = this.allTasks.find(t => t.id == taskId);
+
+                            if (task && task.status !== newStatus) {
+                                // 建立要更新的資料
+                                const originalStatus = task.status;
+                                
+                                // 樂觀更新 (Optimistic Update): 先在 UI 上更新，再發送 API
+                                // 1. 先將卡片留在新的位置
+                                // 2. 更新 allTasks 陣列中的資料
+                                task.status = newStatus; 
+                                
+                                try {
+                                    // 3. 發送 API 請求到後端
+                                    await this.api.updateTaskStatus(taskId, newStatus);
+                                    this.ui.showSnackbar(`任務狀態已更新為 "${newStatus}"`);
+                                } catch (error) {
+                                    // 4. 如果 API 失敗，復原 UI
+                                    this.ui.showSnackbar(`更新失敗: ${error.message}`);
+                                    // 將任務狀態改回來
+                                    // task.status = from.id.replace('section-', '');
+                                    task.status = originalStatus;
+                                    // 將 DOM 元素移回原來的列表
+                                    from.appendChild(item);
+                                } finally {
+                                    // 5. 無論成功或失敗，都重新渲染以確保資料一致性
+                                    this._applyFiltersAndRender();
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+            // END MODIFICATION
             // 載入任務
             async loadTasks() {
                 try {
