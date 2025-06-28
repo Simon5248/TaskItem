@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 主題色與全域樣式 */
         :root {
@@ -18,6 +19,7 @@
             /* 新增：到期日相關顏色 */
             --overdue-color: #c62828;
             --due-soon-color: #ad6200;
+            --status-pending-color: #757575; --status-inprogress-color: #1976d2; --status-completed-color: #43a047;
         }
         body { font-family: 'Roboto', sans-serif; margin: 0; background-color: var(--background-color); color: var(--text-color); line-height: 1.6; overflow: hidden; }
         /* 登入區塊樣式 */
@@ -126,45 +128,64 @@
         .section-header:hover { background-color: #f0f0f0; }
         .section-body { padding-top: 16px; }
         .section-body.collapsed { display: none; }
+        /* START MODIFICATION: 新增視圖切換器樣式 */
+        .view-switcher {
+            display: flex;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .view-switcher .btn {
+            background-color: transparent;
+            box-shadow: none;
+            text-transform: none;
+            font-size: 0.95rem;
+            padding: 6px 14px;
+        }
+        .view-switcher .btn:hover {
+            background-color: rgba(255,255,255,0.15);
+        }
+        .view-switcher .btn.active {
+            background-color: var(--surface-color);
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        /* END MODIFICATION */
+        main { flex-grow: 1; padding: 24px; overflow-y: auto; }
+        
+        /* START MODIFICATION: 儀表板樣式 */
+        #dashboard-view {
+            display: none; /* 預設隱藏 */
+            padding: 16px;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+        .chart-container {
+            background-color: var(--surface-color);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+        .chart-container h2 {
+            margin-top: 0;
+            text-align: center;
+            color: #333;
+            font-weight: 500;
+        }
+        /* END MODIFICATION */
     </style>
 </head>
 <body>
-    <!-- 登入/註冊區塊 -->
-    <div id="auth-container">
-        <div class="login-card">
-            <h1>任務管理系統</h1>
-            <p>請使用您的 Email 登入或註冊</p>
-            <form id="login-form" method="POST">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">密碼 (最少6位數)</label>
-                    <input
-                        type="password"
-                        id="password"
-                        class="form-control"
-                        required
-                        minlength="6"
-                        maxlength="64"
-                        autocomplete="off"
-                        inputmode="text"
-                        spellcheck="false"
-                    />
-                </div>
-                <p id="auth-error" class="error-message"></p>
-                <div class="form-actions" style="justify-content: space-between;">
-                    <button type="button" class="btn btn-secondary" id="register-btn">註冊新帳號</button>
-                    <button type="submit" class="btn" id="login-btn">登入</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <!-- 主應用區塊 -->
+
     <div id="app-container">
         <header class="app-bar">
-            <h1>我的任務</h1>
+            <div class="view-switcher">
+                <button class="btn active" id="show-tasks-view-btn">任務列表</button>
+                <button class="btn" id="show-dashboard-view-btn">儀表板</button>
+            </div>
             <div class="app-bar-user-info">
                 <span id="user-email"></span>
                 <button class="btn" id="add-task-btn"><i class="mdi mdi-plus"></i>新增任務</button>
@@ -172,7 +193,7 @@
                 <button class="btn" id="logout-btn">登出</button>
             </div>
         </header>
-        <main>
+        <main id="tasks-view">
             <div class="filter-toolbar">
                 <div class="form-group">
                     <input type="search" id="search-input" class="form-control" placeholder="搜尋標題或描述...">
@@ -210,7 +231,68 @@
                 </div>
             </div>
         </main>
+        <main id="dashboard-view">
+            <div class="dashboard-grid">
+                <div class="chart-container">
+                    <h2>任務狀態分佈</h2>
+                    <canvas id="status-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>任務優先級分佈</h2>
+                    <canvas id="priority-chart"></canvas>
+                </div>
+            </div>
+        </main>
     </div>
+
+    <!-- 登入/註冊區塊 -->
+    <div id="auth-container">
+        <div class="login-card">
+            <h1>任務管理系統</h1>
+            <p>請使用您的 Email 登入或註冊</p>
+            <form id="login-form" method="POST">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密碼 (最少6位數)</label>
+                    <input
+                        type="password"
+                        id="password"
+                        class="form-control"
+                        required
+                        minlength="6"
+                        maxlength="64"
+                        autocomplete="off"
+                        inputmode="text"
+                        spellcheck="false"
+                    />
+                </div>
+                <p id="auth-error" class="error-message"></p>
+                <div class="form-actions" style="justify-content: space-between;">
+                    <button type="button" class="btn btn-secondary" id="register-btn">註冊新帳號</button>
+                    <button type="submit" class="btn" id="login-btn">登入</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+
+
+    <!-- 主應用區塊 -->
+    <!-- <div id="app-container">
+        <header class="app-bar">
+            <h1>我的任務</h1>
+            <div class="app-bar-user-info">
+                <span id="user-email"></span>
+                <button class="btn" id="add-task-btn"><i class="mdi mdi-plus"></i>新增任務</button>
+                <button class="btn" id="export-tasks-btn"><i class="mdi mdi-download"></i>匯出任務</button>
+                <button class="btn" id="logout-btn">登出</button>
+            </div>
+        </header>
+    </div> -->
     <!-- 任務編輯/新增 Modal -->
     <div class="modal-overlay" id="task-modal-overlay">
         <div class="modal-content" id="task-form-container">
@@ -449,9 +531,41 @@
                     priorityFilter: document.getElementById('priority-filter'),
                     // --- 新增：快取到期日輸入框 ---
                     dueDateInput: document.getElementById('due-date'),
+
+                    // START MODIFICATION: 快取新 UI 元素
+                    tasksView: document.getElementById('tasks-view'),
+                    dashboardView: document.getElementById('dashboard-view'),
+                    showTasksViewBtn: document.getElementById('show-tasks-view-btn'),
+                    showDashboardViewBtn: document.getElementById('show-dashboard-view-btn'),
+                    statusChartCanvas: document.getElementById('status-chart'),
+                    priorityChartCanvas: document.getElementById('priority-chart'),
+                    addTaskBtn: document.getElementById('add-task-btn'), // 快取新增任務按鈕
+                    // END MODIFICATION
                 };
                 this._resolveConfirm = null;
             }
+
+            // START MODIFICATION: 新增切換視圖的 UI 邏輯
+            switchView(viewToShow) {
+                // 隱藏所有主視圖
+                this.elements.tasksView.style.display = 'none';
+                this.elements.dashboardView.style.display = 'none';
+                
+                // 顯示指定的視圖
+                if (viewToShow === 'tasks') {
+                    this.elements.tasksView.style.display = 'block';
+                    this.elements.addTaskBtn.style.display = 'inline-flex'; // 顯示新增按鈕
+                } else if (viewToShow === 'dashboard') {
+                    this.elements.dashboardView.style.display = 'block';
+                    this.elements.addTaskBtn.style.display = 'none'; // 隱藏新增按鈕
+                }
+
+                // 更新按鈕的 active 狀態
+                this.elements.showTasksViewBtn.classList.toggle('active', viewToShow === 'tasks');
+                this.elements.showDashboardViewBtn.classList.toggle('active', viewToShow === 'dashboard');
+            }
+            // END MODIFICATION
+
 
             // 設定刪除確認視窗的事件
             setupConfirmationModal() {
@@ -644,6 +758,11 @@
                 this.ui = new UIController();
                 this.allTasks = [];
                 this.logoutTimer = null; // 新增
+                // START MODIFICATION: 新增屬性以保存圖表實例和當前視圖
+                this.currentView = 'tasks'; // 預設為任務列表
+                this.statusChartInstance = null;
+                this.priorityChartInstance = null;
+                // END MODIFICATION
                 this._initializeApp();
             }
 
@@ -817,8 +936,134 @@
                 this.ui.elements.searchInput.addEventListener('input', () => this._applyFiltersAndRender());
                 this.ui.elements.priorityFilter.addEventListener('change', () => this._applyFiltersAndRender());
  
+                // START MODIFICATION: 綁定視圖切換事件
+                this.ui.elements.showTasksViewBtn.addEventListener('click', () => this.showView('tasks'));
+                this.ui.elements.showDashboardViewBtn.addEventListener('click', () => this.showView('dashboard'));
+                // END MODIFICATION
 
             }
+
+
+            // START MODIFICATION: 新增視圖管理和圖表渲染方法
+            /**
+             * 顯示指定視圖並觸發對應的渲染
+             * @param {'tasks' | 'dashboard'} viewName 
+             */
+            showView(viewName) {
+                if (this.currentView === viewName) return; // 如果已經在當前視圖，則不動作
+                
+                this.currentView = viewName;
+                this.ui.switchView(viewName);
+
+                if (viewName === 'dashboard') {
+                    this._renderDashboard();
+                }
+            }
+
+
+            /**
+             * 渲染儀表板上的所有圖表
+             */
+            _renderDashboard() {
+                // 1. 處理狀態圖表
+                const statusCounts = this.allTasks.reduce((acc, task) => {
+                    acc[task.status] = (acc[task.status] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const statusData = {
+                    labels: ['待處理 (Pending)', '進行中 (In Progress)', '已完成 (Completed)'],
+                    datasets: [{
+                        label: '任務數量',
+                        data: [
+                            statusCounts['pending'] || 0,
+                            statusCounts['in-progress'] || 0,
+                            statusCounts['completed'] || 0
+                        ],
+                        backgroundColor: [
+                            getComputedStyle(document.documentElement).getPropertyValue('--status-pending-color'),
+                            getComputedStyle(document.documentElement).getPropertyValue('--status-inprogress-color'),
+                            getComputedStyle(document.documentElement).getPropertyValue('--status-completed-color')
+                        ],
+                        hoverOffset: 4
+                    }]
+                };
+
+                // 建立或更新圖表
+                if (this.statusChartInstance) this.statusChartInstance.destroy();
+                this.statusChartInstance = new Chart(this.ui.elements.statusChartCanvas, {
+                    type: 'pie',
+                    data: statusData,
+                });
+
+                // 2. 處理優先級圖表
+                const priorityCounts = this.allTasks.reduce((acc, task) => {
+                    acc[task.priority] = (acc[task.priority] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const priorityData = {
+                    labels: ['高 (High)', '中 (Medium)', '低 (Low)'],
+                    datasets: [{
+                        label: '任務數量',
+                        data: [
+                            priorityCounts['high'] || 0,
+                            priorityCounts['medium'] || 0,
+                            priorityCounts['low'] || 0
+                        ],
+                        backgroundColor: [
+                           getComputedStyle(document.documentElement).getPropertyValue('--high-priority-color'),
+                           getComputedStyle(document.documentElement).getPropertyValue('--medium-priority-color'),
+                           getComputedStyle(document.documentElement).getPropertyValue('--low-priority-color')
+                        ],
+                        hoverOffset: 4
+                    }]
+                };
+
+                if (this.priorityChartInstance) this.priorityChartInstance.destroy();
+                this.priorityChartInstance = new Chart(this.ui.elements.priorityChartCanvas, {
+                    type: 'doughnut',
+                    data: priorityData,
+                });
+            }
+/**
+             * 在數據變更後，智能刷新當前視圖
+             */
+            _refreshCurrentView() {
+                if (this.currentView === 'tasks') {
+                    this._applyFiltersAndRender();
+                } else if (this.currentView === 'dashboard') {
+                    this._renderDashboard();
+                }
+            }
+            // END MODIFICATION
+
+            async loadTasks() {
+                try {
+                    this.allTasks = await this.api.getTasks();
+                    this._refreshCurrentView(); // 使用新的刷新方法
+                } catch (error) { /* ... */ }
+            }
+
+            async handleFormSubmit(event) {
+                // ... [前半部邏輯不變] ...
+                try {
+                    // ... [API 呼叫不變] ...
+                    await this.loadTasks(); // loadTasks 會自動刷新當前視圖
+                } catch (error) { /* ... */ } 
+                finally { /* ... */ }
+            }
+            
+            _initializeDragAndDrop() {
+                // ... onEnd 事件中 ...
+                // onEnd: async (evt) => {
+                //   try { ... } 
+                //   finally {
+                //     this._refreshCurrentView(); // 拖放結束後也使用新的刷新方法
+                //   }
+                // }
+            }
+
             // START MODIFICATION: 新增 _initializeDragAndDrop 方法
             /**
              * 初始化 SortableJS 拖放功能
