@@ -25,6 +25,9 @@ MIT License 條款詳見各專案官方網站。
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -193,12 +196,66 @@ MIT License 條款詳見各專案官方網站。
             font-weight: 500;
         }
         /* END MODIFICATION */
+
+        /* 任務描述區域樣式 */
+        .task-description {
+            margin: 8px 0;
+            color: #616161;
+            font-size: 0.9rem;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .task-description b, .task-description strong {
+            font-weight: 600;
+            color: #424242;
+        }
+
+        .task-description i, .task-description em {
+            font-style: italic;
+        }
+
+        .task-description u {
+            text-decoration: underline;
+        }
+
+        .task-description ul, .task-description ol {
+            margin: 4px 0 4px 20px;
+            padding: 0;
+        }
+
+        .task-description li {
+            margin: 2px 0;
+        }
+
+        /* contenteditable 編輯器樣式改進 */
+        #description {
+            min-height: 80px;
+            outline: none;
+            padding: 10px;
+            line-height: 1.4;
+        }
+
+        #description:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+        }
+
+        #description ul, #description ol {
+            margin: 8px 0 8px 20px;
+            padding: 0;
+        }
+
+        #description li {
+            margin: 4px 0;
+        }
     </style>
 </head>
 <body>
 
     <div id="app-container">
         <header class="app-bar">
+            <!-- <h3>我的任務</h3> -->
             <div class="view-switcher">
                 <button class="btn active" id="show-tasks-view-btn">任務列表</button>
                 <button class="btn" id="show-dashboard-view-btn">儀表板</button>
@@ -426,16 +483,31 @@ MIT License 條款詳見各專案官方網站。
         </div>
     </div>
     <script>
-    // 將 contenteditable 的內容同步到 JS 表單
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('task-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // 將 description 的 HTML 存到一個隱藏欄位或直接在 JS 取 innerHTML
-                // 這裡不需要 textarea，直接用 contenteditable
-            });
+        // 將 contenteditable 的內容同步到 JS 表單
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     const form = document.getElementById('task-form');
+        //     if (form) {
+        //         form.addEventListener('submit', function(e) {
+        //             // 將 description 的 HTML 存到一個隱藏欄位或直接在 JS 取 innerHTML
+        //             // 這裡不需要 textarea，直接用 contenteditable
+        //         });
+        //     }
+        // });
+    
+        function setFontSize(size) {
+            document.getElementById('description').focus();
+            if (size) document.execCommand('fontSize', false, size);
         }
-    });
+        function applyFontColor() {
+            const color = document.getElementById('font-color-picker').value;
+            document.getElementById('description').focus();
+            if (color) document.execCommand('foreColor', false, color);
+        }
+        // 新增：快速套用指定顏色
+        function quickFontColor(color) {
+            document.getElementById('description').focus();
+            if (color) document.execCommand('foreColor', false, color);
+        }
     </script>
     <!-- 刪除確認 Modal -->
     <div class="modal-overlay" id="confirm-modal-overlay">
@@ -1043,7 +1115,7 @@ MIT License 條款詳見各專案官方網站。
                     data: priorityData,
                 });
             }
-/**
+            /**
              * 在數據變更後，智能刷新當前視圖
              */
             _refreshCurrentView() {
@@ -1311,91 +1383,12 @@ MIT License 條款詳見各專案官方網站。
         }
 
 
-        // 額外建議：加入 CSS 樣式來美化 description 顯示
-        const additionalCSS = `
-        /* 任務描述區域樣式 */
-        .task-description {
-            margin: 8px 0;
-            color: #616161;
-            font-size: 0.9rem;
-            word-break: break-word;
-            line-height: 1.4;
-        }
-
-        .task-description b, .task-description strong {
-            font-weight: 600;
-            color: #424242;
-        }
-
-        .task-description i, .task-description em {
-            font-style: italic;
-        }
-
-        .task-description u {
-            text-decoration: underline;
-        }
-
-        .task-description ul, .task-description ol {
-            margin: 4px 0 4px 20px;
-            padding: 0;
-        }
-
-        .task-description li {
-            margin: 2px 0;
-        }
-
-        /* contenteditable 編輯器樣式改進 */
-        #description {
-            min-height: 80px;
-            outline: none;
-            padding: 10px;
-            line-height: 1.4;
-        }
-
-        #description:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
-        }
-
-        #description ul, #description ol {
-            margin: 8px 0 8px 20px;
-            padding: 0;
-        }
-
-        #description li {
-            margin: 4px 0;
-        }
-        `;
-
-        // 將額外的 CSS 加入到頁面
-        const style = document.createElement('style');
-        style.textContent = additionalCSS;
-        document.head.appendChild(style);
-
 
         // --- 應用程式初始化 ---
         document.addEventListener('DOMContentLoaded', function() {
           new App();
         });
     </script>
-    <!-- 請加在 </body> 前，或 type="module" 之前 -->
-    <script>
-    function setFontSize(size) {
-        document.getElementById('description').focus();
-        if (size) document.execCommand('fontSize', false, size);
-    }
-    function applyFontColor() {
-        const color = document.getElementById('font-color-picker').value;
-        document.getElementById('description').focus();
-        if (color) document.execCommand('foreColor', false, color);
-    }
-    // 新增：快速套用指定顏色
-    function quickFontColor(color) {
-        document.getElementById('description').focus();
-        if (color) document.execCommand('foreColor', false, color);
-    }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 </body>
 </html>
