@@ -64,28 +64,7 @@ MIT License 條款詳見各專案官方網站。
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         #logout-btn { background-color: transparent; border: 1px solid white; }
         main { flex-grow: 1; padding: 24px; overflow-y: auto; }
-        /* --- 新增：篩選工具列樣式 --- */
-        .filter-toolbar {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 24px;
-            background-color: var(--surface-color);
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .filter-toolbar .form-group {
-            margin-bottom: 0;
-            flex-grow: 1;
-        }
-        .filter-toolbar .form-control {
-             width: 100%;
-             padding: 10px;
-             border: 1px solid #bdbdbd;
-             border-radius: 4px;
-             font-size: 1rem;
-             box-sizing: border-box;
-        }
+        
         /* 任務卡片樣式 */
         .task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
         .task-card { background-color: var(--surface-color); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.3s ease; }
@@ -253,6 +232,51 @@ MIT License 條款詳見各專案官方網站。
         .color-btn:hover span {
             box-shadow: 0 0 0 2px var(--primary-color);
         }
+
+        .filter-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            background-color: var(--surface-color);
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            align-items: flex-end;
+        }
+        .filter-toolbar .form-group {
+            margin-bottom: 0;
+        }
+        .filter-toolbar .form-group.search-group {
+            flex: 1 1 220px;
+            min-width: 180px;
+        }
+        .filter-toolbar .form-group.priority-group {
+            flex: 0 0 180px;
+            min-width: 120px;
+        }
+        .filter-toolbar .form-group.date-group {
+            flex: 0 0 340px;
+            min-width: 220px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        @media (max-width: 700px) {
+            .filter-toolbar {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .filter-toolbar .form-group {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            .filter-toolbar .form-group.date-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -273,16 +297,23 @@ MIT License 條款詳見各專案官方網站。
         </header>
         <main id="tasks-view">
             <div class="filter-toolbar">
-                <div class="form-group">
+                <div class="form-group search-group">
                     <input type="search" id="search-input" class="form-control" placeholder="搜尋標題或描述...">
                 </div>
-                <div class="form-group" style="flex-grow: 0; min-width: 150px;">
+                <div class="form-group priority-group">
                     <select id="priority-filter" class="form-control">
                         <option value="all">所有優先級</option>
                         <option value="high">高</option>
                         <option value="medium">中</option>
                         <option value="low">低</option>
                     </select>
+                </div>
+                <div class="form-group date-group">                    
+                    <input type="date" id="created-from" class="form-control"
+                        style="width: 125px; min-width: 0; padding: 8px 8px; font-size: 1em; border-radius: 4px;">
+                    <span style="font-size:1.2em; color:#888;">~</span>
+                    <input type="date" id="created-to" class="form-control"
+                        style="width: 125px; min-width: 0; padding: 8px 8px; font-size: 1em; border-radius: 4px;">
                 </div>
             </div>
             <div id="task-list-export">
@@ -611,6 +642,9 @@ MIT License 條款詳見各專案官方網站。
                     priorityChartCanvas: document.getElementById('priority-chart'),
                     addTaskBtn: document.getElementById('add-task-btn'), // 快取新增任務按鈕
                     // END MODIFICATION
+
+                    createdFrom: document.getElementById('created-from'),
+                    createdTo: document.getElementById('created-to'),
                 };
                 this._resolveConfirm = null;
             }
@@ -1011,6 +1045,9 @@ MIT License 條款詳見各專案官方網站。
                 this.ui.elements.showDashboardViewBtn.addEventListener('click', () => this.showView('dashboard'));
                 // END MODIFICATION
 
+
+                this.ui.elements.createdFrom.addEventListener('change', () => this._applyFiltersAndRender());
+                this.ui.elements.createdTo.addEventListener('change', () => this._applyFiltersAndRender());                
             }
 
 
@@ -1211,6 +1248,9 @@ MIT License 條款詳見各專案官方網站。
             _applyFiltersAndRender() {
                 const searchTerm = this.ui.elements.searchInput.value.toLowerCase();
                 const priority = this.ui.elements.priorityFilter.value;
+                // 新增：獲取到期日的值
+                const createdFrom = this.ui.elements.createdFrom.value;
+                const createdTo = this.ui.elements.createdTo.value;
 
                 let filteredTasks = this.allTasks;
 
@@ -1227,7 +1267,26 @@ MIT License 條款詳見各專案官方網站。
                     filteredTasks = filteredTasks.filter(task => task.priority === priority);
                 }
 
-                // 3. 使用篩選後的結果進行渲染
+                // 3. 建立日區間
+                if (createdFrom) {
+                    const fromDate = new Date(createdFrom);
+                    filteredTasks = filteredTasks.filter(task => {
+                        if (!task.createdAt) return false;
+                        const created = new Date(task.createdAt);
+                        return created >= fromDate;
+                    });
+                }
+                if (createdTo) {
+                    const toDate = new Date(createdTo);
+                    filteredTasks = filteredTasks.filter(task => {
+                        if (!task.createdAt) return false;
+                        const created = new Date(task.createdAt);
+                        // 包含當天
+                        toDate.setHours(23,59,59,999);
+                        return created <= toDate;
+                    });
+                }
+                // 4. 使用篩選後的結果進行渲染
                 this.renderTasksByStatus(filteredTasks);
             }
 
