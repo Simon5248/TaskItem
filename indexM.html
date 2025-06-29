@@ -161,7 +161,13 @@ MIT License 條款詳見各專案官方網站。
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 24px;
-        }
+        }        
+        .dashboard-grid {
+            display: grid;
+            /* 在較寬螢幕上顯示為 2x2 網格 */
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+        }        
         .chart-container {
             background-color: var(--surface-color);
             padding: 24px;
@@ -170,10 +176,11 @@ MIT License 條款詳見各專案官方網站。
         }
         .chart-container h2 {
             margin-top: 0;
+            margin-bottom: 20px; /* 增加標題與圖表間距 */
             text-align: center;
             color: #333;
             font-weight: 500;
-        }
+        } 
         /* END MODIFICATION */
 
         /* 任務描述區域樣式 */
@@ -277,6 +284,7 @@ MIT License 條款詳見各專案官方網站。
                 gap: 4px;
             }
         }
+               
     </style>
 </head>
 <body>
@@ -349,6 +357,14 @@ MIT License 條款詳見各專案官方網站。
                 <div class="chart-container">
                     <h2>任務優先級分佈</h2>
                     <canvas id="priority-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>最近半年任務建立量</h2>
+                    <canvas id="monthly-volume-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>最近半年到期任務分析</h2>
+                    <canvas id="due-tasks-chart"></canvas>
                 </div>
             </div>
         </main>
@@ -645,6 +661,11 @@ MIT License 條款詳見各專案官方網站。
 
                     createdFrom: document.getElementById('created-from'),
                     createdTo: document.getElementById('created-to'),
+                    
+                    // START MODIFICATION: 快取新的 canvas 元素
+                    monthlyVolumeChartCanvas: document.getElementById('monthly-volume-chart'),
+                    dueTasksChartCanvas: document.getElementById('due-tasks-chart'),
+                    // END MODIFICATION
                 };
                 this._resolveConfirm = null;
             }
@@ -866,6 +887,8 @@ MIT License 條款詳見各專案官方網站。
                 this.currentView = 'tasks'; // 預設為任務列表
                 this.statusChartInstance = null;
                 this.priorityChartInstance = null;
+                this.monthlyVolumeChartInstance = null;
+                this.dueTasksChartInstance = null;
                 // END MODIFICATION
                 this._initializeApp();
             }
@@ -1072,7 +1095,7 @@ MIT License 條款詳見各專案官方網站。
              * 渲染儀表板上的所有圖表
              */
             _renderDashboard() {
-                // 1. 處理狀態圖表
+                // Part 1. 處理狀態圖表
                 const statusCounts = this.allTasks.reduce((acc, task) => {
                     acc[task.status] = (acc[task.status] || 0) + 1;
                     return acc;
@@ -1103,7 +1126,7 @@ MIT License 條款詳見各專案官方網站。
                     data: statusData,
                 });
 
-                // 2. 處理優先級圖表
+                // Part 2. 處理優先級圖表
                 const priorityCounts = this.allTasks.reduce((acc, task) => {
                     acc[task.priority] = (acc[task.priority] || 0) + 1;
                     return acc;
@@ -1132,6 +1155,172 @@ MIT License 條款詳見各專案官方網站。
                     type: 'doughnut',
                     data: priorityData,
                 });
+
+
+                // --- Part 3: 最近半年任務建立量 (折線圖) ---
+                const sixMonthsAgo3 = new Date();
+                sixMonthsAgo3.setMonth(sixMonthsAgo3.getMonth() - 5);
+                sixMonthsAgo3.setDate(1);
+
+                const monthlyLabels = [];
+                const monthlyData = [];
+                for (let i = 0; i < 6; i++) {
+                    const month = new Date(sixMonthsAgo3);
+                    month.setMonth(sixMonthsAgo3.getMonth() + i);
+                    const label = month.getFullYear() + '-' + String(month.getMonth() + 1).padStart(2, '0');
+                    monthlyLabels.push(label);
+                    monthlyData.push(0);
+                }
+
+                this.allTasks.forEach(task => {
+                    if (task.createdAt) {
+                        const taskMonth = task.createdAt.slice(0, 7);
+                        const index = monthlyLabels.indexOf(taskMonth);
+                        if (index !== -1) {
+                            monthlyData[index]++;
+                        }
+                    }
+                });
+
+                if (this.monthlyVolumeChartInstance) this.monthlyVolumeChartInstance.destroy();
+                this.monthlyVolumeChartInstance = new Chart(this.ui.elements.monthlyVolumeChartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: monthlyLabels,
+                        datasets: [{
+                            label: '新增任務數',
+                            data: monthlyData,
+                            fill: false,
+                            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-color'),
+                            tension: 0.1
+                        }]
+                    }
+                });
+
+                // START MODIFICATION: 更新第四張圖表的邏輯，改為「分組長條圖」
+
+                // --- Part 4: 最近半年到期任務分析 (組合圖表：分組長條圖 + 折線圖) ---
+                const sixMonthsAgo4 = new Date();
+                sixMonthsAgo4.setMonth(sixMonthsAgo4.getMonth() - 5);
+                sixMonthsAgo4.setDate(1);
+
+                const taskAnalysisLabels = [];
+                const onTimeData = new Array(6).fill(0);
+                const lateData = new Array(6).fill(0);
+                const overdueData = new Array(6).fill(0);
+                const pendingData = new Array(6).fill(0);
+
+                for (let i = 0; i < 6; i++) {
+                    const month = new Date(sixMonthsAgo4);
+                    month.setMonth(sixMonthsAgo4.getMonth() + i);
+                    taskAnalysisLabels.push(month.getFullYear() + '-' + String(month.getMonth() + 1).padStart(2, '0'));
+                }
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                this.allTasks.forEach(task => {
+                    if (!task.dueDate) return;
+                    
+                    const dueDate = new Date(task.dueDate);
+                    const createDate = new Date(task.createdAt);
+                    const taskDueMonth = task.dueDate.slice(0, 7);
+                    const taskCreatedAtMonth = task.createdAt.slice(0, 7);
+                    const indexDue = taskAnalysisLabels.indexOf(taskDueMonth);
+                    const indexCreatedAt = taskAnalysisLabels.indexOf(taskCreatedAtMonth);
+                    var index = -1;
+                    
+                    if (indexDue === -1 && indexCreatedAt === -1) {
+                        return;
+                    } else if (indexDue !== -1) {
+                        index = indexDue;
+                    } else if (indexCreatedAt !== -1) {
+                        index = indexCreatedAt;
+                    } 
+                    // 如果 index 是 -1，表示任務的到期月份或建立月份不在最近六個月內
+                    if (index === -1) return; 
+
+                    if (task.status === 'completed') {                        
+                        const completedAt = task.completedAt ? new Date(task.completedAt) : today;
+                        if (completedAt <= dueDate) {
+                            onTimeData[index]++;
+                        } else {
+                            lateData[index]++;
+                        }
+                    } else {                        
+                        if (dueDate < today) {
+                            overdueData[index]++;
+                        } else {                            
+                            pendingData[index]++;
+                        }
+                    }
+                });
+
+                const totalData = new Array(6).fill(0);
+                for (let i = 0; i < 6; i++) {
+                    totalData[i] = onTimeData[i] + lateData[i] + overdueData[i] + pendingData[i];
+                }
+
+                if (this.dueTasksChartInstance) this.dueTasksChartInstance.destroy();
+                this.dueTasksChartInstance = new Chart(this.ui.elements.dueTasksChartCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: taskAnalysisLabels,
+                        datasets: [
+                            {
+                                type: 'line',
+                                label: '當月到期總數',
+                                data: totalData,
+                                borderColor: '#666666',
+                                backgroundColor: '#666666',
+                                fill: false,
+                                tension: 0.1,
+                                order: 0
+                            },
+                            {
+                                label: '準時完成',
+                                data: onTimeData,
+                                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--status-completed-color'),
+                                // stack: 'combined', // 移除 stack 屬性
+                                order: 1
+                            },
+                            {
+                                label: '逾期完成',
+                                data: lateData,
+                                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--medium-priority-color'),
+                                // stack: 'combined', // 移除 stack 屬性
+                                order: 1
+                            },
+                            {
+                                label: '至今仍逾期',
+                                data: overdueData,
+                                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--overdue-color'),
+                                // stack: 'combined', // 移除 stack 屬性
+                                order: 1
+                            },
+                            {
+                                label: '未到期 (處理中)',
+                                data: pendingData,
+                                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--status-inprogress-color'),
+                                // stack: 'combined', // 移除 stack 屬性
+                                order: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: {
+                            title: { display: true, text: '任務到期狀況分析' },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        responsive: true,
+                        // 核心設定：關閉堆疊效果
+                        scales: {
+                            x: { stacked: false }, // <--- 將 true 改為 false
+                            y: { stacked: false, beginAtZero: true } // <--- 將 true 改為 false
+                        }
+                    }
+                });
+                // END MODIFICATION
             }
             /**
              * 在數據變更後，智能刷新當前視圖
