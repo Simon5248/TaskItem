@@ -30,6 +30,7 @@ MIT License 條款詳見各專案官方網站。
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -251,13 +252,14 @@ MIT License 條款詳見各專案官方網站。
         <header class="app-bar">
             <!-- <h3>我的任務</h3> -->
             <div class="view-switcher">
-                <button class="btn active" id="show-tasks-view-btn">任務列表</button>
                 <button class="btn" id="show-dashboard-view-btn">儀表板</button>
+                <button class="btn active" id="show-tasks-view-btn">任務列表</button>
             </div>
             <div class="app-bar-user-info">
                 <span id="user-email"></span>
                 <button class="btn" id="add-task-btn"><i class="mdi mdi-plus"></i>新增任務</button>
                 <button class="btn" id="export-tasks-btn"><i class="mdi mdi-download"></i>匯出任務</button>
+                <button class="btn" id="export-dashboard-btn" style="display:none;"><i class="mdi mdi-download"></i>匯出儀表板</button>
                 <button class="btn" id="logout-btn">登出</button>
             </div>
         </header>
@@ -620,12 +622,15 @@ MIT License 條款詳見各專案官方網站。
                 this.elements.dashboardView.style.display = 'none';
                 
                 // 顯示指定的視圖
+                const exportDashboardBtn = document.getElementById('export-dashboard-btn');
                 if (viewToShow === 'tasks') {
                     this.elements.tasksView.style.display = 'block';
                     this.elements.addTaskBtn.style.display = 'inline-flex'; // 顯示新增按鈕
+                    if (exportDashboardBtn) exportDashboardBtn.style.display = 'none';
                 } else if (viewToShow === 'dashboard') {
                     this.elements.dashboardView.style.display = 'block';
                     this.elements.addTaskBtn.style.display = 'none'; // 隱藏新增按鈕
+                    if (exportDashboardBtn) exportDashboardBtn.style.display = 'inline-flex';
                 }
 
                 // 更新按鈕的 active 狀態
@@ -989,6 +994,33 @@ MIT License 條款詳見各專案官方網站。
                         html2canvas: { scale: 2 }
                     }).save();
                 });
+
+
+                // filepath: d:\1_source\TaskItem\indexM.html
+                document.getElementById('export-dashboard-btn').addEventListener('click', async () => {
+                    const chartContainers = document.querySelectorAll('#dashboard-view .chart-container');
+                    if (!chartContainers.length) {
+                        this.ui.showSnackbar('找不到儀表板區塊');
+                        return;
+                    }
+                    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+                    for (let i = 0; i < chartContainers.length; i++) {
+                        const container = chartContainers[i];
+                        // 轉成 canvas
+                        const canvas = await html2canvas(container, { scale: 2 });
+                        const imgData = canvas.toDataURL('image/png');
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        // 計算圖片等比例縮放
+                        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+                        const imgWidth = canvas.width * ratio;
+                        const imgHeight = canvas.height * ratio;
+                        pdf.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, (pageHeight - imgHeight) / 2, imgWidth, imgHeight);
+                        if (i < chartContainers.length - 1) pdf.addPage();
+                    }
+                    pdf.save(`dashboard_${new Date().toISOString().slice(0,10)}.pdf`);
+                });
+
 
                 // 點擊 Modal 外部關閉
                 this.ui.elements.modalOverlay.addEventListener('click', e => { if (e.target === this.ui.elements.modalOverlay) this.ui.toggleModal(false); });
