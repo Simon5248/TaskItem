@@ -1003,7 +1003,7 @@ MIT License 條款詳見各專案官方網站。
                         this.ui.showSnackbar('找不到儀表板區塊');
                         return;
                     }
-                    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+                    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'b5' });
                     for (let i = 0; i < chartContainers.length; i++) {
                         const container = chartContainers[i];
                         // 轉成 canvas
