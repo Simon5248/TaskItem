@@ -1232,7 +1232,7 @@ MIT License 條款詳見各專案官方網站。
                     if (index === -1) return; 
 
                     if (task.status === 'completed') {                        
-                        const completedAt = task.completedAt ? new Date(task.completedAt) : today;
+                        const completedAt = task.updatedAt ? new Date(task.updatedAt) : today;
                         if (completedAt <= dueDate) {
                             onTimeData[index]++;
                         } else {
